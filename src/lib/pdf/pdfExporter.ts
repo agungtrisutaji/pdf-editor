@@ -8,6 +8,7 @@ import {
 } from "pdf-lib";
 import type { Overlay, OverlayPageState } from "../../types/overlays";
 import {
+  fitRectContain,
   getPageScale,
   mapPreviewRectToPdfRect,
   type PageSize,
@@ -74,12 +75,21 @@ export async function exportPdfWithOverlays({
       }
 
       if (overlay.type === "signature") {
-        const image = await embedSignatureImage(pdfDocument, overlay.imageDataUrl);
+        const image = await embedSignatureImage(
+          pdfDocument,
+          overlay.imageDataUrl,
+        );
+        const fittedRect = fitRectContain({
+          containerWidth: rect.width,
+          containerHeight: rect.height,
+          contentAspectRatio: getSignatureAspectRatio(overlay),
+        });
+
         page.drawImage(image, {
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
+          x: rect.x + fittedRect.xOffset,
+          y: rect.y + fittedRect.yOffset,
+          width: fittedRect.width,
+          height: fittedRect.height,
           opacity: overlay.opacity,
         });
         continue;
@@ -205,6 +215,16 @@ function parseImageDataUrl(imageDataUrl: string): {
     mimeType: match[1].toLowerCase(),
     bytes,
   };
+}
+
+function getSignatureAspectRatio(
+  overlay: Extract<Overlay, { type: "signature" }>,
+): number {
+  if (overlay.naturalWidth <= 0 || overlay.naturalHeight <= 0) {
+    return overlay.width / overlay.height;
+  }
+
+  return overlay.naturalWidth / overlay.naturalHeight;
 }
 
 function parseHexColor(value: string): RGB {

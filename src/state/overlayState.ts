@@ -26,12 +26,19 @@ type CreateTextOverlayInput = {
 type CreateSignatureOverlayInput = {
   pageIndex: number;
   imageDataUrl: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
   id?: string;
   x?: number;
   y?: number;
   width?: number;
   height?: number;
 };
+
+const DEFAULT_SIGNATURE_WIDTH = 220;
+const FALLBACK_SIGNATURE_HEIGHT = 90;
+const MIN_SIGNATURE_HEIGHT = 48;
+const MAX_SIGNATURE_HEIGHT = 160;
 
 type CreateStampOverlayInput = {
   pageIndex: number;
@@ -69,11 +76,13 @@ export function createTextOverlay({
 export function createSignatureOverlay({
   pageIndex,
   imageDataUrl,
+  naturalWidth = DEFAULT_SIGNATURE_WIDTH,
+  naturalHeight = FALLBACK_SIGNATURE_HEIGHT,
   id = crypto.randomUUID(),
   x = 96,
   y = 140,
-  width = 220,
-  height = 90,
+  width = DEFAULT_SIGNATURE_WIDTH,
+  height = getDefaultSignatureHeight({ naturalWidth, naturalHeight, width }),
 }: CreateSignatureOverlayInput): SignatureOverlay {
   return {
     id,
@@ -86,6 +95,8 @@ export function createSignatureOverlay({
     rotation: 0,
     imageDataUrl,
     opacity: 1,
+    naturalWidth,
+    naturalHeight,
   };
 }
 
@@ -257,4 +268,29 @@ function moveOverlayByOffset(
     ...overlayState,
     [pageIndex]: reorderedOverlays,
   };
+}
+
+function getDefaultSignatureHeight({
+  naturalWidth,
+  naturalHeight,
+  width,
+}: {
+  naturalWidth: number;
+  naturalHeight: number;
+  width: number;
+}): number {
+  if (naturalWidth <= 0 || naturalHeight <= 0) {
+    return FALLBACK_SIGNATURE_HEIGHT;
+  }
+
+  const aspectRatio = naturalWidth / naturalHeight;
+
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+    return FALLBACK_SIGNATURE_HEIGHT;
+  }
+
+  return Math.min(
+    Math.max(MIN_SIGNATURE_HEIGHT, width / aspectRatio),
+    MAX_SIGNATURE_HEIGHT,
+  );
 }

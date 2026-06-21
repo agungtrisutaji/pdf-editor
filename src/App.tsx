@@ -5,7 +5,10 @@ import {
   type SelectedPdfFile,
 } from "./components/pdf/PdfFilePicker";
 import { OverlayList } from "./components/overlays/OverlayList";
-import { SignatureImagePicker } from "./components/overlays/SignatureImagePicker";
+import {
+  SignatureImagePicker,
+  type SignatureImageInput,
+} from "./components/overlays/SignatureImagePicker";
 import {
   StampPicker,
   type StampPreset,
@@ -128,7 +131,7 @@ function App() {
     setSelectedOverlayId(textOverlay.id);
   }
 
-  function handleSignatureSelected(imageDataUrl: string) {
+  function handleSignatureSelected(signatureImage: SignatureImageInput) {
     if (!canAddOverlay) {
       return;
     }
@@ -139,7 +142,9 @@ function App() {
     );
     const signatureOverlay = createSignatureOverlay({
       pageIndex: activePageIndex,
-      imageDataUrl,
+      imageDataUrl: signatureImage.imageDataUrl,
+      naturalWidth: signatureImage.naturalWidth,
+      naturalHeight: signatureImage.naturalHeight,
       x: SIGNATURE_OVERLAY_BASE_X + offset,
       y: SIGNATURE_OVERLAY_BASE_Y + offset,
     });
