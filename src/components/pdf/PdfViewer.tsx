@@ -18,6 +18,10 @@ type PdfViewerProps = {
   selectedOverlayId: string | null;
   onOverlaySelect: (overlayId: string) => void;
   onOverlayMove: (overlayId: string, position: { x: number; y: number }) => void;
+  onOverlayResize: (
+    overlayId: string,
+    size: { width: number; height: number },
+  ) => void;
   onPageIndexChange: (pageIndex: number) => void;
   onDocumentReadyChange: (isReady: boolean) => void;
 };
@@ -32,6 +36,7 @@ export function PdfViewer({
   selectedOverlayId,
   onOverlaySelect,
   onOverlayMove,
+  onOverlayResize,
   onPageIndexChange,
   onDocumentReadyChange,
 }: PdfViewerProps) {
@@ -207,6 +212,7 @@ export function PdfViewer({
               selectedOverlayId={selectedOverlayId}
               onOverlaySelect={onOverlaySelect}
               onOverlayMove={onOverlayMove}
+              onOverlayResize={onOverlayResize}
             />
           ) : null}
         </div>
