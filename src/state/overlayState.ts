@@ -1,5 +1,10 @@
 import type { Overlay, OverlayPageState, TextOverlay } from "../types/overlays";
 
+type OverlayPosition = {
+  x: number;
+  y: number;
+};
+
 type CreateTextOverlayInput = {
   pageIndex: number;
   id?: string;
@@ -64,6 +69,29 @@ export function updateTextOverlayText(
         return {
           ...overlay,
           text,
+        };
+      }),
+    ]),
+  );
+}
+
+export function updateOverlayPosition(
+  overlayState: OverlayPageState,
+  overlayId: string,
+  position: OverlayPosition,
+): OverlayPageState {
+  return Object.fromEntries(
+    Object.entries(overlayState).map(([pageIndex, overlays]) => [
+      pageIndex,
+      overlays.map((overlay) => {
+        if (overlay.id !== overlayId) {
+          return overlay;
+        }
+
+        return {
+          ...overlay,
+          x: position.x,
+          y: position.y,
         };
       }),
     ]),
