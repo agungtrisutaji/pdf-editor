@@ -1,49 +1,63 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { useMemo, useState } from "react";
 import "./App.css";
+import { OverlayLayer } from "./components/overlays/OverlayLayer";
+import {
+  addOverlay,
+  createTextOverlay,
+  getPageOverlays,
+} from "./state/overlayState";
+import type { OverlayPageState } from "./types/overlays";
+
+const ACTIVE_PAGE_INDEX = 0;
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [overlayState, setOverlayState] = useState<OverlayPageState>({});
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  const activePageOverlays = useMemo(
+    () => getPageOverlays(overlayState, ACTIVE_PAGE_INDEX),
+    [overlayState],
+  );
+
+  function handleAddText() {
+    const textOverlay = createTextOverlay({ pageIndex: ACTIVE_PAGE_INDEX });
+    setOverlayState((currentState) => addOverlay(currentState, textOverlay));
   }
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <main className="app-shell">
+      <aside className="sidebar">
+        <div>
+          <p className="eyebrow">Offline PDF Editor</p>
+          <h1>Overlay Editor</h1>
+        </div>
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+        <button type="button" onClick={handleAddText}>
+          Add Text
+        </button>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+        <dl className="page-summary">
+          <div>
+            <dt>Active page</dt>
+            <dd>{ACTIVE_PAGE_INDEX + 1}</dd>
+          </div>
+          <div>
+            <dt>Overlays</dt>
+            <dd>{activePageOverlays.length}</dd>
+          </div>
+        </dl>
+      </aside>
+
+      <section className="workspace" aria-label="PDF page workspace">
+        <div className="page-frame">
+          <canvas
+            className="pdf-canvas"
+            width="612"
+            height="792"
+            aria-label="PDF page preview"
+          />
+          <OverlayLayer overlays={activePageOverlays} />
+        </div>
+      </section>
     </main>
   );
 }
