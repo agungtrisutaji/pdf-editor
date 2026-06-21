@@ -9,6 +9,7 @@ import {
   isPdfRenderCancelError,
   renderPdfPageToCanvas,
 } from "../../lib/pdf/pdfRenderer";
+import type { PageSize } from "../../lib/pdf/coordinateMapper";
 import type { Overlay } from "../../types/overlays";
 
 type PdfViewerProps = {
@@ -24,6 +25,7 @@ type PdfViewerProps = {
   ) => void;
   onPageIndexChange: (pageIndex: number) => void;
   onDocumentReadyChange: (isReady: boolean) => void;
+  onPagePreviewSizeChange: (pageIndex: number, size: PageSize) => void;
 };
 
 type LoadStatus = "idle" | "loading" | "ready" | "error";
@@ -39,6 +41,7 @@ export function PdfViewer({
   onOverlayResize,
   onPageIndexChange,
   onDocumentReadyChange,
+  onPagePreviewSizeChange,
 }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
@@ -130,6 +133,19 @@ export function PdfViewer({
       .then(() => {
         if (isCurrentRender) {
           setRenderStatus("ready");
+
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const bounds = canvas.getBoundingClientRect();
+            const width =
+              bounds.width || Number.parseFloat(canvas.style.width) || 0;
+            const height =
+              bounds.height || Number.parseFloat(canvas.style.height) || 0;
+
+            if (width > 0 && height > 0) {
+              onPagePreviewSizeChange(pageIndex, { width, height });
+            }
+          }
         }
       })
       .catch((error: unknown) => {
@@ -145,7 +161,7 @@ export function PdfViewer({
       isCurrentRender = false;
       renderTask?.cancel();
     };
-  }, [pdfDocument, pageNumber]);
+  }, [onPagePreviewSizeChange, pageIndex, pdfDocument, pageNumber]);
 
   const totalPages = pdfDocument?.numPages ?? 0;
   const canGoPrevious = pageIndex > 0;

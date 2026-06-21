@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import "./App.css";
 import {
   PdfFilePicker,
@@ -12,6 +12,8 @@ import {
 } from "./components/overlays/StampPicker";
 import { TextOverlayEditor } from "./components/overlays/TextOverlayEditor";
 import { PdfViewer } from "./components/pdf/PdfViewer";
+import type { PageSize } from "./lib/pdf/coordinateMapper";
+import { exportPdfWithOverlays } from "./lib/pdf/pdfExporter";
 import {
   addOverlay,
   createSignatureOverlay,
@@ -38,6 +40,7 @@ const STAMP_OVERLAY_BASE_X = 96;
 const STAMP_OVERLAY_BASE_Y = 180;
 const STAMP_OVERLAY_OFFSET_STEP = 24;
 const STAMP_OVERLAY_MAX_OFFSET = 240;
+type ExportStatus = "idle" | "exporting" | "success" | "error";
 
 function App() {
   const [selectedPdf, setSelectedPdf] = useState<SelectedPdfFile | null>(null);
@@ -45,9 +48,14 @@ function App() {
   const [isPdfReady, setIsPdfReady] = useState(false);
   const [activePageIndex, setActivePageIndex] = useState(0);
   const [overlayState, setOverlayState] = useState<OverlayPageState>({});
+  const [previewPageSizes, setPreviewPageSizes] = useState<
+    Record<number, PageSize>
+  >({});
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(
     null,
   );
+  const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const activePageOverlays = getPageOverlays(overlayState, activePageIndex);
   const selectedOverlay =
@@ -55,6 +63,7 @@ function App() {
       (overlay) => overlay.id === selectedOverlayId,
     ) ?? null;
   const canAddOverlay = selectedPdf !== null && isPdfReady;
+  const canExportPdf = selectedPdf !== null && isPdfReady;
 
   function handlePdfSelected(file: SelectedPdfFile) {
     setPickerError(null);
@@ -62,7 +71,10 @@ function App() {
     setIsPdfReady(false);
     setActivePageIndex(0);
     setOverlayState({});
+    setPreviewPageSizes({});
     setSelectedOverlayId(null);
+    setExportStatus("idle");
+    setExportError(null);
   }
 
   function handlePickerError(message: string) {
@@ -71,8 +83,32 @@ function App() {
     setIsPdfReady(false);
     setActivePageIndex(0);
     setOverlayState({});
+    setPreviewPageSizes({});
     setSelectedOverlayId(null);
+    setExportStatus("idle");
+    setExportError(null);
   }
+
+  const handlePagePreviewSizeChange = useCallback(
+    (pageIndexToUpdate: number, size: PageSize) => {
+      setPreviewPageSizes((currentSizes) => {
+        const currentSize = currentSizes[pageIndexToUpdate];
+
+        if (
+          currentSize?.width === size.width &&
+          currentSize.height === size.height
+        ) {
+          return currentSizes;
+        }
+
+        return {
+          ...currentSizes,
+          [pageIndexToUpdate]: size,
+        };
+      });
+    },
+    [],
+  );
 
   function handleAddTextOverlay() {
     if (!canAddOverlay) {
@@ -188,6 +224,31 @@ function App() {
     );
   }
 
+  async function handleExportPdf() {
+    if (!selectedPdf || !canExportPdf || exportStatus === "exporting") {
+      return;
+    }
+
+    setExportStatus("exporting");
+    setExportError(null);
+
+    try {
+      const exportedPdf = await exportPdfWithOverlays({
+        pdfData: selectedPdf.data,
+        overlayState,
+        previewPageSizes,
+      });
+      downloadPdf({
+        pdfBytes: exportedPdf,
+        fileName: getExportFileName(selectedPdf.fileName),
+      });
+      setExportStatus("success");
+    } catch (error: unknown) {
+      setExportStatus("error");
+      setExportError(getExportErrorMessage(error));
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -218,6 +279,24 @@ function App() {
           disabled={!canAddOverlay}
           onStampSelected={handleStampSelected}
         />
+
+        <section className="export-panel" aria-label="PDF export">
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={!canExportPdf || exportStatus === "exporting"}
+          >
+            Export PDF
+          </button>
+          <p className="helper-text" role="status" aria-live="polite">
+            {exportStatus === "exporting"
+              ? "Exporting..."
+              : exportStatus === "success"
+                ? "Export successful. Original PDF unchanged."
+                : "Creates a new local PDF download."}
+          </p>
+          {exportError ? <p className="error-message">{exportError}</p> : null}
+        </section>
 
         <dl className="page-summary">
           <div>
@@ -265,9 +344,53 @@ function App() {
         onOverlayResize={handleOverlaySizeChange}
         onPageIndexChange={handlePageIndexChange}
         onDocumentReadyChange={setIsPdfReady}
+        onPagePreviewSizeChange={handlePagePreviewSizeChange}
       />
     </main>
   );
+}
+
+function getExportFileName(fileName: string): string {
+  const safeName = fileName
+    .trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+    .replace(/\s+/g, " ");
+  const withoutPdfExtension = safeName.replace(/\.pdf$/i, "");
+  const baseName = withoutPdfExtension || "edited-document";
+
+  return `${baseName}-exported.pdf`;
+}
+
+function downloadPdf({
+  pdfBytes,
+  fileName,
+}: {
+  pdfBytes: Uint8Array;
+  fileName: string;
+}) {
+  const pdfData = pdfBytes.buffer.slice(
+    pdfBytes.byteOffset,
+    pdfBytes.byteOffset + pdfBytes.byteLength,
+  );
+  const blob = new Blob([pdfData], { type: "application/pdf" });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = objectUrl;
+  link.download = fileName;
+  link.rel = "noopener";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
+function getExportErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return `Export failed: ${error.message}`;
+  }
+
+  return "Export failed. The PDF could not be created.";
 }
 
 export default App;
