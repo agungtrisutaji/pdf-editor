@@ -28,7 +28,9 @@ import {
   moveOverlayForward,
   updateOverlayPosition,
   updateOverlaySize,
+  updateTextOverlayStyle,
   updateTextOverlayText,
+  type TextOverlayStylePatch,
 } from "./state/overlayState";
 import type { OverlayPageState } from "./types/overlays";
 
@@ -189,6 +191,16 @@ function App() {
     );
   }
 
+  function handleSelectedTextStyleChange(patch: TextOverlayStylePatch) {
+    if (!selectedOverlayId) {
+      return;
+    }
+
+    setOverlayState((currentState) =>
+      updateTextOverlayStyle(currentState, selectedOverlayId, patch),
+    );
+  }
+
   function handleOverlayDelete(overlayId: string) {
     setOverlayState((currentState) => deleteOverlay(currentState, overlayId));
 
@@ -334,6 +346,7 @@ function App() {
         <TextOverlayEditor
           overlay={selectedOverlay}
           onTextChange={handleSelectedTextChange}
+          onStyleChange={handleSelectedTextStyleChange}
         />
 
         {pickerError ? <p className="error-message">{pickerError}</p> : null}
