@@ -15,6 +15,10 @@ function getOverlayLabel(overlay: Overlay, index: number): string {
     return text ? `Text: ${text.slice(0, 28)}` : `Text ${index + 1}`;
   }
 
+  if (overlay.type === "signature") {
+    return `Signature ${index + 1}`;
+  }
+
   return `${overlay.type} ${index + 1}`;
 }
 

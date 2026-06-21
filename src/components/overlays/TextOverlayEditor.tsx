@@ -1,7 +1,7 @@
-import type { TextOverlay } from "../../types/overlays";
+import type { Overlay } from "../../types/overlays";
 
 type TextOverlayEditorProps = {
-  overlay: TextOverlay | null;
+  overlay: Overlay | null;
   onTextChange: (text: string) => void;
 };
 
@@ -10,6 +10,24 @@ export function TextOverlayEditor({
   onTextChange,
 }: TextOverlayEditorProps) {
   if (!overlay) {
+    return (
+      <section className="overlay-editor-panel" aria-label="Text overlay editor">
+        <h2>Text Overlay</h2>
+        <p className="helper-text">Select a text overlay to edit.</p>
+      </section>
+    );
+  }
+
+  if (overlay.type === "signature") {
+    return (
+      <section className="overlay-editor-panel" aria-label="Text overlay editor">
+        <h2>Text Overlay</h2>
+        <p className="helper-text">Selected overlay is a signature image.</p>
+      </section>
+    );
+  }
+
+  if (overlay.type !== "text") {
     return (
       <section className="overlay-editor-panel" aria-label="Text overlay editor">
         <h2>Text Overlay</h2>

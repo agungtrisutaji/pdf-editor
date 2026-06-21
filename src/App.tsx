@@ -5,10 +5,12 @@ import {
   type SelectedPdfFile,
 } from "./components/pdf/PdfFilePicker";
 import { OverlayList } from "./components/overlays/OverlayList";
+import { SignatureImagePicker } from "./components/overlays/SignatureImagePicker";
 import { TextOverlayEditor } from "./components/overlays/TextOverlayEditor";
 import { PdfViewer } from "./components/pdf/PdfViewer";
 import {
   addOverlay,
+  createSignatureOverlay,
   createTextOverlay,
   deleteOverlay,
   getPageOverlays,
@@ -18,11 +20,15 @@ import {
   updateOverlaySize,
   updateTextOverlayText,
 } from "./state/overlayState";
-import type { OverlayPageState, TextOverlay } from "./types/overlays";
+import type { OverlayPageState } from "./types/overlays";
 
 const TEXT_OVERLAY_BASE_POSITION = 96;
 const TEXT_OVERLAY_OFFSET_STEP = 24;
 const TEXT_OVERLAY_MAX_OFFSET = 240;
+const SIGNATURE_OVERLAY_BASE_X = 96;
+const SIGNATURE_OVERLAY_BASE_Y = 140;
+const SIGNATURE_OVERLAY_OFFSET_STEP = 24;
+const SIGNATURE_OVERLAY_MAX_OFFSET = 240;
 
 function App() {
   const [selectedPdf, setSelectedPdf] = useState<SelectedPdfFile | null>(null);
@@ -35,10 +41,9 @@ function App() {
   );
 
   const activePageOverlays = getPageOverlays(overlayState, activePageIndex);
-  const selectedTextOverlay =
+  const selectedOverlay =
     activePageOverlays.find(
-      (overlay): overlay is TextOverlay =>
-        overlay.id === selectedOverlayId && overlay.type === "text",
+      (overlay) => overlay.id === selectedOverlayId,
     ) ?? null;
   const canAddTextOverlay = selectedPdf !== null && isPdfReady;
 
@@ -76,6 +81,27 @@ function App() {
     });
     setOverlayState((currentState) => addOverlay(currentState, textOverlay));
     setSelectedOverlayId(textOverlay.id);
+  }
+
+  function handleSignatureSelected(imageDataUrl: string) {
+    if (!canAddTextOverlay) {
+      return;
+    }
+
+    const offset = Math.min(
+      activePageOverlays.length * SIGNATURE_OVERLAY_OFFSET_STEP,
+      SIGNATURE_OVERLAY_MAX_OFFSET,
+    );
+    const signatureOverlay = createSignatureOverlay({
+      pageIndex: activePageIndex,
+      imageDataUrl,
+      x: SIGNATURE_OVERLAY_BASE_X + offset,
+      y: SIGNATURE_OVERLAY_BASE_Y + offset,
+    });
+    setOverlayState((currentState) =>
+      addOverlay(currentState, signatureOverlay),
+    );
+    setSelectedOverlayId(signatureOverlay.id);
   }
 
   function handlePageIndexChange(pageIndex: number) {
@@ -154,6 +180,11 @@ function App() {
           Add Text
         </button>
 
+        <SignatureImagePicker
+          disabled={!canAddTextOverlay}
+          onSignatureSelected={handleSignatureSelected}
+        />
+
         <dl className="page-summary">
           <div>
             <dt>File</dt>
@@ -183,7 +214,7 @@ function App() {
         />
 
         <TextOverlayEditor
-          overlay={selectedTextOverlay}
+          overlay={selectedOverlay}
           onTextChange={handleSelectedTextChange}
         />
 

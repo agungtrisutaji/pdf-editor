@@ -255,14 +255,14 @@ export function OverlayLayer({
   return (
     <div ref={layerRef} className="overlay-layer" aria-label="PDF overlays">
       {overlays.map((overlay) => {
-        if (overlay.type !== "text") {
+        if (overlay.type === "stamp") {
           return null;
         }
 
         return (
           <div
             key={overlay.id}
-            className={`pdf-overlay text-overlay${
+            className={`pdf-overlay ${overlay.type}-overlay${
               overlay.id === selectedOverlayId ? " is-selected" : ""
             }${overlay.id === dragState?.overlayId ? " is-dragging" : ""}${
               overlay.id === resizeState?.overlayId ? " is-resizing" : ""
@@ -288,12 +288,26 @@ export function OverlayLayer({
               width: overlay.width,
               height: overlay.height,
               transform: `rotate(${overlay.rotation}deg)`,
-              color: overlay.color,
-              fontFamily: overlay.fontFamily,
-              fontSize: overlay.fontSize,
+              ...(overlay.type === "text"
+                ? {
+                    color: overlay.color,
+                    fontFamily: overlay.fontFamily,
+                    fontSize: overlay.fontSize,
+                  }
+                : {}),
             }}
           >
-            <span className="text-overlay-content">{overlay.text}</span>
+            {overlay.type === "text" ? (
+              <span className="text-overlay-content">{overlay.text}</span>
+            ) : (
+              <img
+                className="signature-overlay-image"
+                src={overlay.imageDataUrl}
+                alt=""
+                draggable={false}
+                style={{ opacity: overlay.opacity }}
+              />
+            )}
             {overlay.id === selectedOverlayId ? (
               <span
                 className="overlay-resize-handle"
