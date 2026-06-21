@@ -23,6 +23,8 @@ export type SignatureOverlay = BaseOverlay & {
   type: "signature";
   imageDataUrl: string;
   opacity: number;
+  naturalWidth: number;
+  naturalHeight: number;
 };
 
 export type StampOverlay = BaseOverlay & {
