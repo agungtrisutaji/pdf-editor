@@ -287,6 +287,12 @@ function App() {
           Add Text
         </button>
 
+        <TextOverlayEditor
+          overlay={selectedOverlay}
+          onTextChange={handleSelectedTextChange}
+          onStyleChange={handleSelectedTextStyleChange}
+        />
+
         <SignatureImagePicker
           disabled={!canAddOverlay}
           onSignatureSelected={handleSignatureSelected}
@@ -341,12 +347,6 @@ function App() {
           onOverlayDelete={handleOverlayDelete}
           onOverlayMoveForward={handleOverlayMoveForward}
           onOverlayMoveBackward={handleOverlayMoveBackward}
-        />
-
-        <TextOverlayEditor
-          overlay={selectedOverlay}
-          onTextChange={handleSelectedTextChange}
-          onStyleChange={handleSelectedTextStyleChange}
         />
 
         {pickerError ? <p className="error-message">{pickerError}</p> : null}
