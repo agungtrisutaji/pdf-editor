@@ -15,6 +15,7 @@ import {
   moveOverlayBackward,
   moveOverlayForward,
   updateOverlayPosition,
+  updateOverlaySize,
   updateTextOverlayText,
 } from "./state/overlayState";
 import type { OverlayPageState, TextOverlay } from "./types/overlays";
@@ -123,6 +124,15 @@ function App() {
     );
   }
 
+  function handleOverlaySizeChange(
+    overlayId: string,
+    size: { width: number; height: number },
+  ) {
+    setOverlayState((currentState) =>
+      updateOverlaySize(currentState, overlayId, size),
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -187,6 +197,7 @@ function App() {
         selectedOverlayId={selectedOverlayId}
         onOverlaySelect={setSelectedOverlayId}
         onOverlayMove={handleOverlayPositionChange}
+        onOverlayResize={handleOverlaySizeChange}
         onPageIndexChange={handlePageIndexChange}
         onDocumentReadyChange={setIsPdfReady}
       />
