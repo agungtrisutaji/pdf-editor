@@ -15,6 +15,8 @@ type PdfViewerProps = {
   pdfFile: SelectedPdfFile | null;
   pageIndex: number;
   overlays: Overlay[];
+  selectedOverlayId: string | null;
+  onOverlaySelect: (overlayId: string) => void;
   onPageIndexChange: (pageIndex: number) => void;
   onDocumentReadyChange: (isReady: boolean) => void;
 };
@@ -26,6 +28,8 @@ export function PdfViewer({
   pdfFile,
   pageIndex,
   overlays,
+  selectedOverlayId,
+  onOverlaySelect,
   onPageIndexChange,
   onDocumentReadyChange,
 }: PdfViewerProps) {
@@ -195,7 +199,13 @@ export function PdfViewer({
       <div className="canvas-stage">
         <div className="page-surface">
           <canvas ref={canvasRef} className="pdf-canvas" />
-          {pdfDocument ? <OverlayLayer overlays={overlays} /> : null}
+          {pdfDocument ? (
+            <OverlayLayer
+              overlays={overlays}
+              selectedOverlayId={selectedOverlayId}
+              onOverlaySelect={onOverlaySelect}
+            />
+          ) : null}
         </div>
         {!pdfFile && (
           <div className="empty-state">
