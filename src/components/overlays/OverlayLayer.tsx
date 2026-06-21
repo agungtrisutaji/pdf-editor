@@ -6,6 +6,11 @@ type OverlayPosition = {
   y: number;
 };
 
+type OverlaySize = {
+  width: number;
+  height: number;
+};
+
 type DragState = {
   overlayId: string;
   pointerStartX: number;
@@ -16,21 +21,37 @@ type DragState = {
   overlayHeight: number;
 };
 
+type ResizeState = {
+  overlayId: string;
+  pointerStartX: number;
+  pointerStartY: number;
+  overlayX: number;
+  overlayY: number;
+  overlayStartWidth: number;
+  overlayStartHeight: number;
+};
+
 type OverlayLayerProps = {
   overlays: Overlay[];
   selectedOverlayId: string | null;
   onOverlaySelect: (overlayId: string) => void;
   onOverlayMove: (overlayId: string, position: OverlayPosition) => void;
+  onOverlayResize: (overlayId: string, size: OverlaySize) => void;
 };
+
+const MIN_OVERLAY_WIDTH = 48;
+const MIN_OVERLAY_HEIGHT = 24;
 
 export function OverlayLayer({
   overlays,
   selectedOverlayId,
   onOverlaySelect,
   onOverlayMove,
+  onOverlayResize,
 }: OverlayLayerProps) {
   const layerRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [resizeState, setResizeState] = useState<ResizeState | null>(null);
 
   function getPointerPosition(event: PointerEvent<HTMLElement>) {
     const layerBounds = layerRef.current?.getBoundingClientRect();
@@ -69,6 +90,28 @@ export function OverlayLayer({
     };
   }
 
+  function clampOverlaySize({
+    width,
+    height,
+    overlayX,
+    overlayY,
+    layerWidth,
+    layerHeight,
+  }: OverlaySize & {
+    overlayX: number;
+    overlayY: number;
+    layerWidth: number;
+    layerHeight: number;
+  }): OverlaySize {
+    const maxWidth = Math.max(MIN_OVERLAY_WIDTH, layerWidth - overlayX);
+    const maxHeight = Math.max(MIN_OVERLAY_HEIGHT, layerHeight - overlayY);
+
+    return {
+      width: Math.min(Math.max(MIN_OVERLAY_WIDTH, width), maxWidth),
+      height: Math.min(Math.max(MIN_OVERLAY_HEIGHT, height), maxHeight),
+    };
+  }
+
   function handlePointerDown(
     event: PointerEvent<HTMLDivElement>,
     overlay: Overlay,
@@ -86,6 +129,7 @@ export function OverlayLayer({
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     onOverlaySelect(overlay.id);
+    setResizeState(null);
     setDragState({
       overlayId: overlay.id,
       pointerStartX: pointerPosition.x,
@@ -135,6 +179,79 @@ export function OverlayLayer({
     setDragState(null);
   }
 
+  function handleResizePointerDown(
+    event: PointerEvent<HTMLSpanElement>,
+    overlay: Overlay,
+  ) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const pointerPosition = getPointerPosition(event);
+
+    if (!pointerPosition) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    onOverlaySelect(overlay.id);
+    setDragState(null);
+    setResizeState({
+      overlayId: overlay.id,
+      pointerStartX: pointerPosition.x,
+      pointerStartY: pointerPosition.y,
+      overlayX: overlay.x,
+      overlayY: overlay.y,
+      overlayStartWidth: overlay.width,
+      overlayStartHeight: overlay.height,
+    });
+  }
+
+  function handleResizePointerMove(event: PointerEvent<HTMLSpanElement>) {
+    if (!resizeState) {
+      return;
+    }
+
+    const pointerPosition = getPointerPosition(event);
+
+    if (!pointerPosition) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const nextSize = clampOverlaySize({
+      width:
+        resizeState.overlayStartWidth +
+        (pointerPosition.x - resizeState.pointerStartX),
+      height:
+        resizeState.overlayStartHeight +
+        (pointerPosition.y - resizeState.pointerStartY),
+      overlayX: resizeState.overlayX,
+      overlayY: resizeState.overlayY,
+      layerWidth: pointerPosition.layerWidth,
+      layerHeight: pointerPosition.layerHeight,
+    });
+
+    onOverlayResize(resizeState.overlayId, nextSize);
+  }
+
+  function finishResize(event: PointerEvent<HTMLSpanElement>) {
+    if (!resizeState) {
+      return;
+    }
+
+    event.stopPropagation();
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setResizeState(null);
+  }
+
   return (
     <div ref={layerRef} className="overlay-layer" aria-label="PDF overlays">
       {overlays.map((overlay) => {
@@ -147,7 +264,9 @@ export function OverlayLayer({
             key={overlay.id}
             className={`pdf-overlay text-overlay${
               overlay.id === selectedOverlayId ? " is-selected" : ""
-            }${overlay.id === dragState?.overlayId ? " is-dragging" : ""}`}
+            }${overlay.id === dragState?.overlayId ? " is-dragging" : ""}${
+              overlay.id === resizeState?.overlayId ? " is-resizing" : ""
+            }`}
             role="button"
             tabIndex={0}
             aria-label="Text overlay"
@@ -174,7 +293,18 @@ export function OverlayLayer({
               fontSize: overlay.fontSize,
             }}
           >
-            {overlay.text}
+            <span className="text-overlay-content">{overlay.text}</span>
+            {overlay.id === selectedOverlayId ? (
+              <span
+                className="overlay-resize-handle"
+                aria-hidden="true"
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => handleResizePointerDown(event, overlay)}
+                onPointerMove={handleResizePointerMove}
+                onPointerUp={finishResize}
+                onPointerCancel={finishResize}
+              />
+            ) : null}
           </div>
         );
       })}
