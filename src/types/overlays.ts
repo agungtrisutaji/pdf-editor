@@ -1,4 +1,5 @@
 export type OverlayKind = "text" | "signature" | "stamp";
+export type TextFontFamily = "Helvetica" | "Times Roman" | "Courier";
 
 export type BaseOverlay = {
   id: string;
@@ -15,8 +16,11 @@ export type TextOverlay = BaseOverlay & {
   type: "text";
   text: string;
   fontSize: number;
-  fontFamily: string;
+  fontFamily: TextFontFamily;
   color: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
 };
 
 export type SignatureOverlay = BaseOverlay & {
