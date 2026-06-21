@@ -116,6 +116,42 @@ button:disabled {
   gap: 10px;
 }
 
+.stamp-picker {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e4e9f1;
+  padding-top: 18px;
+}
+
+.stamp-picker h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.stamp-preset-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.stamp-preset-button {
+  border: 2px solid var(--stamp-color);
+  border-radius: 6px;
+  padding: 0.55rem 0.65rem;
+  color: var(--stamp-color);
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stamp-preset-button:hover:not(:disabled) {
+  background: rgba(241, 245, 249, 0.94);
+}
+
 .file-picker-label {
   color: #172033;
   font-weight: 700;
@@ -343,7 +379,8 @@ textarea:focus {
 }
 
 .text-overlay,
-.signature-overlay {
+.signature-overlay,
+.stamp-overlay {
   display: flex;
   align-items: center;
   border: 1px dashed #2563eb;
@@ -373,6 +410,29 @@ textarea:focus {
   background: transparent;
 }
 
+.stamp-overlay {
+  justify-content: center;
+  border: 3px solid currentColor;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.stamp-overlay-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
 .signature-overlay-image {
   display: block;
   width: 100%;
@@ -385,25 +445,30 @@ textarea:focus {
 .text-overlay:hover,
 .text-overlay:focus-visible,
 .signature-overlay:hover,
-.signature-overlay:focus-visible {
+.signature-overlay:focus-visible,
+.stamp-overlay:hover,
+.stamp-overlay:focus-visible {
   border-style: solid;
   outline: 3px solid rgba(147, 197, 253, 0.72);
   outline-offset: 1px;
 }
 
 .text-overlay.is-selected,
-.signature-overlay.is-selected {
+.signature-overlay.is-selected,
+.stamp-overlay.is-selected {
   border-style: solid;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
 }
 
 .text-overlay.is-dragging,
-.signature-overlay.is-dragging {
+.signature-overlay.is-dragging,
+.stamp-overlay.is-dragging {
   cursor: grabbing;
 }
 
 .text-overlay.is-resizing,
-.signature-overlay.is-resizing {
+.signature-overlay.is-resizing,
+.stamp-overlay.is-resizing {
   cursor: nwse-resize;
 }
 

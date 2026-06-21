@@ -19,7 +19,11 @@ function getOverlayLabel(overlay: Overlay, index: number): string {
     return `Signature ${index + 1}`;
   }
 
-  return `${overlay.type} ${index + 1}`;
+  if (overlay.type === "stamp") {
+    return `Stamp: ${overlay.label}`;
+  }
+
+  return `Overlay ${index + 1}`;
 }
 
 export function OverlayList({

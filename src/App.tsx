@@ -6,11 +6,16 @@ import {
 } from "./components/pdf/PdfFilePicker";
 import { OverlayList } from "./components/overlays/OverlayList";
 import { SignatureImagePicker } from "./components/overlays/SignatureImagePicker";
+import {
+  StampPicker,
+  type StampPreset,
+} from "./components/overlays/StampPicker";
 import { TextOverlayEditor } from "./components/overlays/TextOverlayEditor";
 import { PdfViewer } from "./components/pdf/PdfViewer";
 import {
   addOverlay,
   createSignatureOverlay,
+  createStampOverlay,
   createTextOverlay,
   deleteOverlay,
   getPageOverlays,
@@ -29,6 +34,10 @@ const SIGNATURE_OVERLAY_BASE_X = 96;
 const SIGNATURE_OVERLAY_BASE_Y = 140;
 const SIGNATURE_OVERLAY_OFFSET_STEP = 24;
 const SIGNATURE_OVERLAY_MAX_OFFSET = 240;
+const STAMP_OVERLAY_BASE_X = 96;
+const STAMP_OVERLAY_BASE_Y = 180;
+const STAMP_OVERLAY_OFFSET_STEP = 24;
+const STAMP_OVERLAY_MAX_OFFSET = 240;
 
 function App() {
   const [selectedPdf, setSelectedPdf] = useState<SelectedPdfFile | null>(null);
@@ -45,7 +54,7 @@ function App() {
     activePageOverlays.find(
       (overlay) => overlay.id === selectedOverlayId,
     ) ?? null;
-  const canAddTextOverlay = selectedPdf !== null && isPdfReady;
+  const canAddOverlay = selectedPdf !== null && isPdfReady;
 
   function handlePdfSelected(file: SelectedPdfFile) {
     setPickerError(null);
@@ -66,7 +75,7 @@ function App() {
   }
 
   function handleAddTextOverlay() {
-    if (!canAddTextOverlay) {
+    if (!canAddOverlay) {
       return;
     }
 
@@ -84,7 +93,7 @@ function App() {
   }
 
   function handleSignatureSelected(imageDataUrl: string) {
-    if (!canAddTextOverlay) {
+    if (!canAddOverlay) {
       return;
     }
 
@@ -102,6 +111,26 @@ function App() {
       addOverlay(currentState, signatureOverlay),
     );
     setSelectedOverlayId(signatureOverlay.id);
+  }
+
+  function handleStampSelected(preset: StampPreset) {
+    if (!canAddOverlay) {
+      return;
+    }
+
+    const offset = Math.min(
+      activePageOverlays.length * STAMP_OVERLAY_OFFSET_STEP,
+      STAMP_OVERLAY_MAX_OFFSET,
+    );
+    const stampOverlay = createStampOverlay({
+      pageIndex: activePageIndex,
+      label: preset.label,
+      color: preset.color,
+      x: STAMP_OVERLAY_BASE_X + offset,
+      y: STAMP_OVERLAY_BASE_Y + offset,
+    });
+    setOverlayState((currentState) => addOverlay(currentState, stampOverlay));
+    setSelectedOverlayId(stampOverlay.id);
   }
 
   function handlePageIndexChange(pageIndex: number) {
@@ -175,14 +204,19 @@ function App() {
         <button
           type="button"
           onClick={handleAddTextOverlay}
-          disabled={!canAddTextOverlay}
+          disabled={!canAddOverlay}
         >
           Add Text
         </button>
 
         <SignatureImagePicker
-          disabled={!canAddTextOverlay}
+          disabled={!canAddOverlay}
           onSignatureSelected={handleSignatureSelected}
+        />
+
+        <StampPicker
+          disabled={!canAddOverlay}
+          onStampSelected={handleStampSelected}
         />
 
         <dl className="page-summary">
