@@ -14,6 +14,7 @@ import {
   getPageOverlays,
   moveOverlayBackward,
   moveOverlayForward,
+  updateOverlayPosition,
   updateTextOverlayText,
 } from "./state/overlayState";
 import type { OverlayPageState, TextOverlay } from "./types/overlays";
@@ -113,6 +114,15 @@ function App() {
     setSelectedOverlayId(overlayId);
   }
 
+  function handleOverlayPositionChange(
+    overlayId: string,
+    position: { x: number; y: number },
+  ) {
+    setOverlayState((currentState) =>
+      updateOverlayPosition(currentState, overlayId, position),
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -176,6 +186,7 @@ function App() {
         overlays={selectedPdf ? activePageOverlays : []}
         selectedOverlayId={selectedOverlayId}
         onOverlaySelect={setSelectedOverlayId}
+        onOverlayMove={handleOverlayPositionChange}
         onPageIndexChange={handlePageIndexChange}
         onDocumentReadyChange={setIsPdfReady}
       />
