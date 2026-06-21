@@ -316,6 +316,7 @@ textarea:focus {
 
 .page-surface {
   position: relative;
+  width: fit-content;
   margin: 28px;
 }
 
@@ -343,10 +344,12 @@ textarea:focus {
   border: 1px dashed #2563eb;
   padding: 6px 8px;
   background: rgba(239, 246, 255, 0.76);
-  cursor: pointer;
+  cursor: grab;
   line-height: 1.15;
   pointer-events: auto;
+  touch-action: none;
   white-space: nowrap;
+  user-select: none;
 }
 
 .text-overlay:hover,
@@ -359,6 +362,10 @@ textarea:focus {
 .text-overlay.is-selected {
   border-style: solid;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
+}
+
+.text-overlay.is-dragging {
+  cursor: grabbing;
 }
 
 .empty-state {
