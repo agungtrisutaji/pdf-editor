@@ -5,6 +5,11 @@ type OverlayPosition = {
   y: number;
 };
 
+type OverlaySize = {
+  width: number;
+  height: number;
+};
+
 type CreateTextOverlayInput = {
   pageIndex: number;
   id?: string;
@@ -92,6 +97,29 @@ export function updateOverlayPosition(
           ...overlay,
           x: position.x,
           y: position.y,
+        };
+      }),
+    ]),
+  );
+}
+
+export function updateOverlaySize(
+  overlayState: OverlayPageState,
+  overlayId: string,
+  size: OverlaySize,
+): OverlayPageState {
+  return Object.fromEntries(
+    Object.entries(overlayState).map(([pageIndex, overlays]) => [
+      pageIndex,
+      overlays.map((overlay) => {
+        if (overlay.id !== overlayId) {
+          return overlay;
+        }
+
+        return {
+          ...overlay,
+          width: size.width,
+          height: size.height,
         };
       }),
     ]),
