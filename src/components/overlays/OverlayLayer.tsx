@@ -255,10 +255,6 @@ export function OverlayLayer({
   return (
     <div ref={layerRef} className="overlay-layer" aria-label="PDF overlays">
       {overlays.map((overlay) => {
-        if (overlay.type === "stamp") {
-          return null;
-        }
-
         return (
           <div
             key={overlay.id}
@@ -269,7 +265,7 @@ export function OverlayLayer({
             }`}
             role="button"
             tabIndex={0}
-            aria-label="Text overlay"
+            aria-label={`${overlay.type} overlay`}
             aria-pressed={overlay.id === selectedOverlayId}
             onClick={() => onOverlaySelect(overlay.id)}
             onPointerDown={(event) => handlePointerDown(event, overlay)}
@@ -295,11 +291,12 @@ export function OverlayLayer({
                     fontSize: overlay.fontSize,
                   }
                 : {}),
+              ...(overlay.type === "stamp" ? { color: overlay.color } : {}),
             }}
           >
             {overlay.type === "text" ? (
               <span className="text-overlay-content">{overlay.text}</span>
-            ) : (
+            ) : overlay.type === "signature" ? (
               <img
                 className="signature-overlay-image"
                 src={overlay.imageDataUrl}
@@ -307,6 +304,8 @@ export function OverlayLayer({
                 draggable={false}
                 style={{ opacity: overlay.opacity }}
               />
+            ) : (
+              <span className="stamp-overlay-label">{overlay.label}</span>
             )}
             {overlay.id === selectedOverlayId ? (
               <span
