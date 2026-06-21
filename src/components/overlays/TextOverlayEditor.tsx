@@ -27,6 +27,15 @@ export function TextOverlayEditor({
     );
   }
 
+  if (overlay.type === "stamp") {
+    return (
+      <section className="overlay-editor-panel" aria-label="Text overlay editor">
+        <h2>Text Overlay</h2>
+        <p className="helper-text">Selected overlay is a stamp.</p>
+      </section>
+    );
+  }
+
   if (overlay.type !== "text") {
     return (
       <section className="overlay-editor-panel" aria-label="Text overlay editor">
