@@ -3,6 +3,7 @@ import type {
   OverlayPageState,
   SignatureOverlay,
   StampOverlay,
+  TextFontFamily,
   TextOverlay,
 } from "../types/overlays";
 
@@ -15,6 +16,14 @@ type OverlaySize = {
   width: number;
   height: number;
 };
+export type TextOverlayStylePatch = Partial<{
+  fontSize: number;
+  fontFamily: TextFontFamily;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}>;
 
 type CreateTextOverlayInput = {
   pageIndex: number;
@@ -68,8 +77,11 @@ export function createTextOverlay({
     rotation: 0,
     text: "Text",
     fontSize: 18,
-    fontFamily: "Arial, sans-serif",
+    fontFamily: "Helvetica",
     color: "#111827",
+    bold: false,
+    italic: false,
+    underline: false,
   };
 }
 
@@ -159,6 +171,28 @@ export function updateTextOverlayText(
         return {
           ...overlay,
           text,
+        };
+      }),
+    ]),
+  );
+}
+
+export function updateTextOverlayStyle(
+  overlayState: OverlayPageState,
+  overlayId: string,
+  patch: TextOverlayStylePatch,
+): OverlayPageState {
+  return Object.fromEntries(
+    Object.entries(overlayState).map(([pageIndex, overlays]) => [
+      pageIndex,
+      overlays.map((overlay) => {
+        if (overlay.id !== overlayId || overlay.type !== "text") {
+          return overlay;
+        }
+
+        return {
+          ...overlay,
+          ...patch,
         };
       }),
     ]),

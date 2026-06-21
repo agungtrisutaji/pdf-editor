@@ -6,7 +6,11 @@ import {
   type PDFPage,
   type RGB,
 } from "pdf-lib";
-import type { Overlay, OverlayPageState } from "../../types/overlays";
+import type {
+  Overlay,
+  OverlayPageState,
+  TextFontFamily,
+} from "../../types/overlays";
 import {
   fitRectContain,
   getPageScale,
@@ -22,8 +26,18 @@ type ExportPdfWithOverlaysInput = {
 };
 
 type EmbeddedFonts = {
+  courier: PDFFont;
+  courierBold: PDFFont;
+  courierBoldOblique: PDFFont;
+  courierOblique: PDFFont;
   helvetica: PDFFont;
   helveticaBold: PDFFont;
+  helveticaBoldOblique: PDFFont;
+  helveticaOblique: PDFFont;
+  timesRoman: PDFFont;
+  timesRomanBold: PDFFont;
+  timesRomanBoldItalic: PDFFont;
+  timesRomanItalic: PDFFont;
 };
 
 export async function exportPdfWithOverlays({
@@ -33,8 +47,28 @@ export async function exportPdfWithOverlays({
 }: ExportPdfWithOverlaysInput): Promise<Uint8Array> {
   const pdfDocument = await PDFDocument.load(pdfData.slice(0));
   const fonts: EmbeddedFonts = {
+    courier: await pdfDocument.embedFont(StandardFonts.Courier),
+    courierBold: await pdfDocument.embedFont(StandardFonts.CourierBold),
+    courierBoldOblique: await pdfDocument.embedFont(
+      StandardFonts.CourierBoldOblique,
+    ),
+    courierOblique: await pdfDocument.embedFont(StandardFonts.CourierOblique),
     helvetica: await pdfDocument.embedFont(StandardFonts.Helvetica),
     helveticaBold: await pdfDocument.embedFont(StandardFonts.HelveticaBold),
+    helveticaBoldOblique: await pdfDocument.embedFont(
+      StandardFonts.HelveticaBoldOblique,
+    ),
+    helveticaOblique: await pdfDocument.embedFont(
+      StandardFonts.HelveticaOblique,
+    ),
+    timesRoman: await pdfDocument.embedFont(StandardFonts.TimesRoman),
+    timesRomanBold: await pdfDocument.embedFont(StandardFonts.TimesRomanBold),
+    timesRomanBoldItalic: await pdfDocument.embedFont(
+      StandardFonts.TimesRomanBoldItalic,
+    ),
+    timesRomanItalic: await pdfDocument.embedFont(
+      StandardFonts.TimesRomanItalic,
+    ),
   };
 
   for (const [pageIndexText, overlays] of Object.entries(overlayState)) {
@@ -69,7 +103,7 @@ export async function exportPdfWithOverlays({
           rect,
           previewPageSize,
           pdfPageSize,
-          font: fonts.helvetica,
+          fonts,
         });
         continue;
       }
@@ -113,27 +147,49 @@ function drawTextOverlay({
   rect,
   previewPageSize,
   pdfPageSize,
-  font,
+  fonts,
 }: {
   overlay: Extract<Overlay, { type: "text" }>;
   page: PDFPage;
   rect: PdfRect;
   previewPageSize: PageSize;
   pdfPageSize: PageSize;
-  font: PDFFont;
+  fonts: EmbeddedFonts;
 }) {
   const { scaleY } = getPageScale({ previewPageSize, pdfPageSize });
+  const font = getTextOverlayFont({
+    fonts,
+    fontFamily: overlay.fontFamily,
+    bold: overlay.bold,
+    italic: overlay.italic,
+  });
   const fontSize = Math.max(1, overlay.fontSize * scaleY);
   const topAlignedY = rect.y + Math.max(0, rect.height - fontSize * 1.15);
+  const color = parseHexColor(overlay.color);
 
   page.drawText(overlay.text, {
     x: rect.x,
     y: topAlignedY,
     size: fontSize,
     font,
-    color: parseHexColor(overlay.color),
+    color,
     maxWidth: rect.width,
   });
+
+  if (overlay.underline) {
+    const textWidth = Math.min(
+      font.widthOfTextAtSize(overlay.text, fontSize),
+      rect.width,
+    );
+    const underlineY = topAlignedY - fontSize * 0.12;
+
+    page.drawLine({
+      start: { x: rect.x, y: underlineY },
+      end: { x: rect.x + textWidth, y: underlineY },
+      thickness: Math.max(0.5, fontSize * 0.05),
+      color,
+    });
+  }
 }
 
 function drawStampOverlay({
@@ -225,6 +281,64 @@ function getSignatureAspectRatio(
   }
 
   return overlay.naturalWidth / overlay.naturalHeight;
+}
+
+function getTextOverlayFont({
+  fonts,
+  fontFamily,
+  bold,
+  italic,
+}: {
+  fonts: EmbeddedFonts;
+  fontFamily: TextFontFamily;
+  bold: boolean;
+  italic: boolean;
+}): PDFFont {
+  if (fontFamily === "Times Roman") {
+    if (bold && italic) {
+      return fonts.timesRomanBoldItalic;
+    }
+
+    if (bold) {
+      return fonts.timesRomanBold;
+    }
+
+    if (italic) {
+      return fonts.timesRomanItalic;
+    }
+
+    return fonts.timesRoman;
+  }
+
+  if (fontFamily === "Courier") {
+    if (bold && italic) {
+      return fonts.courierBoldOblique;
+    }
+
+    if (bold) {
+      return fonts.courierBold;
+    }
+
+    if (italic) {
+      return fonts.courierOblique;
+    }
+
+    return fonts.courier;
+  }
+
+  if (bold && italic) {
+    return fonts.helveticaBoldOblique;
+  }
+
+  if (bold) {
+    return fonts.helveticaBold;
+  }
+
+  if (italic) {
+    return fonts.helveticaOblique;
+  }
+
+  return fonts.helvetica;
 }
 
 function parseHexColor(value: string): RGB {

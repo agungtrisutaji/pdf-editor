@@ -1,5 +1,5 @@
 import { useRef, useState, type PointerEvent } from "react";
-import type { Overlay } from "../../types/overlays";
+import type { Overlay, TextFontFamily } from "../../types/overlays";
 
 type OverlayPosition = {
   x: number;
@@ -41,6 +41,18 @@ type OverlayLayerProps = {
 
 const MIN_OVERLAY_WIDTH = 48;
 const MIN_OVERLAY_HEIGHT = 24;
+
+function getTextCssFontFamily(fontFamily: TextFontFamily): string {
+  switch (fontFamily) {
+    case "Times Roman":
+      return '"Times New Roman", Times, serif';
+    case "Courier":
+      return '"Courier New", Courier, monospace';
+    case "Helvetica":
+    default:
+      return "Arial, Helvetica, sans-serif";
+  }
+}
 
 export function OverlayLayer({
   overlays,
@@ -287,8 +299,11 @@ export function OverlayLayer({
               ...(overlay.type === "text"
                 ? {
                     color: overlay.color,
-                    fontFamily: overlay.fontFamily,
+                    fontFamily: getTextCssFontFamily(overlay.fontFamily),
                     fontSize: overlay.fontSize,
+                    fontStyle: overlay.italic ? "italic" : "normal",
+                    fontWeight: overlay.bold ? 700 : 400,
+                    textDecoration: overlay.underline ? "underline" : "none",
                   }
                 : {}),
               ...(overlay.type === "stamp" ? { color: overlay.color } : {}),

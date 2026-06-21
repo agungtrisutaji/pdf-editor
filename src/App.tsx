@@ -28,7 +28,9 @@ import {
   moveOverlayForward,
   updateOverlayPosition,
   updateOverlaySize,
+  updateTextOverlayStyle,
   updateTextOverlayText,
+  type TextOverlayStylePatch,
 } from "./state/overlayState";
 import type { OverlayPageState } from "./types/overlays";
 
@@ -45,6 +47,14 @@ const STAMP_OVERLAY_OFFSET_STEP = 24;
 const STAMP_OVERLAY_MAX_OFFSET = 240;
 type ExportStatus = "idle" | "exporting" | "success" | "error";
 
+type DownloadResult = {
+  fileName: string;
+  locationHint: string;
+};
+
+const DOWNLOAD_LOCATION_HINT =
+  "Browser/WebView download location, usually your Downloads folder.";
+
 function App() {
   const [selectedPdf, setSelectedPdf] = useState<SelectedPdfFile | null>(null);
   const [pickerError, setPickerError] = useState<string | null>(null);
@@ -59,6 +69,9 @@ function App() {
   );
   const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
   const [exportError, setExportError] = useState<string | null>(null);
+  const [exportSuccessMessage, setExportSuccessMessage] = useState<
+    string | null
+  >(null);
 
   const activePageOverlays = getPageOverlays(overlayState, activePageIndex);
   const selectedOverlay =
@@ -78,6 +91,7 @@ function App() {
     setSelectedOverlayId(null);
     setExportStatus("idle");
     setExportError(null);
+    setExportSuccessMessage(null);
   }
 
   function handlePickerError(message: string) {
@@ -90,6 +104,7 @@ function App() {
     setSelectedOverlayId(null);
     setExportStatus("idle");
     setExportError(null);
+    setExportSuccessMessage(null);
   }
 
   const handlePagePreviewSizeChange = useCallback(
@@ -189,6 +204,16 @@ function App() {
     );
   }
 
+  function handleSelectedTextStyleChange(patch: TextOverlayStylePatch) {
+    if (!selectedOverlayId) {
+      return;
+    }
+
+    setOverlayState((currentState) =>
+      updateTextOverlayStyle(currentState, selectedOverlayId, patch),
+    );
+  }
+
   function handleOverlayDelete(overlayId: string) {
     setOverlayState((currentState) => deleteOverlay(currentState, overlayId));
 
@@ -236,6 +261,7 @@ function App() {
 
     setExportStatus("exporting");
     setExportError(null);
+    setExportSuccessMessage(null);
 
     try {
       const exportedPdf = await exportPdfWithOverlays({
@@ -243,11 +269,15 @@ function App() {
         overlayState,
         previewPageSizes,
       });
-      downloadPdf({
+      const downloadResult = downloadPdf({
         pdfBytes: exportedPdf,
         fileName: getExportFileName(selectedPdf.fileName),
       });
+      const successMessage = `Export successful: ${downloadResult.fileName}. Location: ${downloadResult.locationHint}`;
+
       setExportStatus("success");
+      setExportSuccessMessage(successMessage);
+      window.alert(successMessage);
     } catch (error: unknown) {
       setExportStatus("error");
       setExportError(getExportErrorMessage(error));
@@ -275,6 +305,12 @@ function App() {
           Add Text
         </button>
 
+        <TextOverlayEditor
+          overlay={selectedOverlay}
+          onTextChange={handleSelectedTextChange}
+          onStyleChange={handleSelectedTextStyleChange}
+        />
+
         <SignatureImagePicker
           disabled={!canAddOverlay}
           onSignatureSelected={handleSignatureSelected}
@@ -300,6 +336,11 @@ function App() {
                 ? "Export successful. Original PDF unchanged."
                 : "Creates a new local PDF download."}
           </p>
+          {exportSuccessMessage ? (
+            <p className="success-message" role="status" aria-live="polite">
+              {exportSuccessMessage}
+            </p>
+          ) : null}
           {exportError ? <p className="error-message">{exportError}</p> : null}
         </section>
 
@@ -329,11 +370,6 @@ function App() {
           onOverlayDelete={handleOverlayDelete}
           onOverlayMoveForward={handleOverlayMoveForward}
           onOverlayMoveBackward={handleOverlayMoveBackward}
-        />
-
-        <TextOverlayEditor
-          overlay={selectedOverlay}
-          onTextChange={handleSelectedTextChange}
         />
 
         {pickerError ? <p className="error-message">{pickerError}</p> : null}
@@ -372,7 +408,7 @@ function downloadPdf({
 }: {
   pdfBytes: Uint8Array;
   fileName: string;
-}) {
+}): DownloadResult {
   const pdfData = pdfBytes.buffer.slice(
     pdfBytes.byteOffset,
     pdfBytes.byteOffset + pdfBytes.byteLength,
@@ -388,6 +424,11 @@ function downloadPdf({
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+
+  return {
+    fileName,
+    locationHint: DOWNLOAD_LOCATION_HINT,
+  };
 }
 
 function getExportErrorMessage(error: unknown): string {
