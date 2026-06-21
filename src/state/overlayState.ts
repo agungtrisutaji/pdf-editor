@@ -2,6 +2,7 @@ import type {
   Overlay,
   OverlayPageState,
   SignatureOverlay,
+  StampOverlay,
   TextOverlay,
 } from "../types/overlays";
 
@@ -25,6 +26,17 @@ type CreateTextOverlayInput = {
 type CreateSignatureOverlayInput = {
   pageIndex: number;
   imageDataUrl: string;
+  id?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+};
+
+type CreateStampOverlayInput = {
+  pageIndex: number;
+  label: string;
+  color: string;
   id?: string;
   x?: number;
   y?: number;
@@ -74,6 +86,30 @@ export function createSignatureOverlay({
     rotation: 0,
     imageDataUrl,
     opacity: 1,
+  };
+}
+
+export function createStampOverlay({
+  pageIndex,
+  label,
+  color,
+  id = crypto.randomUUID(),
+  x = 96,
+  y = 180,
+  width = 180,
+  height = 56,
+}: CreateStampOverlayInput): StampOverlay {
+  return {
+    id,
+    type: "stamp",
+    pageIndex,
+    x,
+    y,
+    width,
+    height,
+    rotation: 0,
+    label,
+    color,
   };
 }
 
