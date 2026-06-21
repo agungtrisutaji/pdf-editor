@@ -1,5 +1,6 @@
 import { useRef, useState, type PointerEvent } from "react";
-import type { Overlay, TextFontFamily } from "../../types/overlays";
+import { getTextOverlayCssFontFamily } from "../../lib/text/textOverlayMetrics";
+import type { Overlay } from "../../types/overlays";
 
 type OverlayPosition = {
   x: number;
@@ -41,18 +42,6 @@ type OverlayLayerProps = {
 
 const MIN_OVERLAY_WIDTH = 48;
 const MIN_OVERLAY_HEIGHT = 24;
-
-function getTextCssFontFamily(fontFamily: TextFontFamily): string {
-  switch (fontFamily) {
-    case "Times Roman":
-      return '"Times New Roman", Times, serif';
-    case "Courier":
-      return '"Courier New", Courier, monospace';
-    case "Helvetica":
-    default:
-      return "Arial, Helvetica, sans-serif";
-  }
-}
 
 export function OverlayLayer({
   overlays,
@@ -299,7 +288,7 @@ export function OverlayLayer({
               ...(overlay.type === "text"
                 ? {
                     color: overlay.color,
-                    fontFamily: getTextCssFontFamily(overlay.fontFamily),
+                    fontFamily: getTextOverlayCssFontFamily(overlay.fontFamily),
                     fontSize: overlay.fontSize,
                     fontStyle: overlay.italic ? "italic" : "normal",
                     fontWeight: overlay.bold ? 700 : 400,
@@ -322,7 +311,7 @@ export function OverlayLayer({
             ) : (
               <span className="stamp-overlay-label">{overlay.label}</span>
             )}
-            {overlay.id === selectedOverlayId ? (
+            {overlay.id === selectedOverlayId && overlay.type !== "text" ? (
               <span
                 className="overlay-resize-handle"
                 aria-hidden="true"

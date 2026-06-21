@@ -500,7 +500,6 @@ input[type="color"]:focus {
   align-items: center;
   border: 1px dashed #2563eb;
   cursor: grab;
-  line-height: 1.15;
   overflow: visible;
   pointer-events: auto;
   touch-action: none;
@@ -508,8 +507,11 @@ input[type="color"]:focus {
 }
 
 .text-overlay {
-  padding: 6px 8px;
+  align-items: flex-start;
+  padding: 4px 8px;
   background: rgba(239, 246, 255, 0.76);
+  cursor: move;
+  line-height: 1.2;
   white-space: nowrap;
 }
 

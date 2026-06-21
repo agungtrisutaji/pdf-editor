@@ -18,6 +18,10 @@ import { PdfViewer } from "./components/pdf/PdfViewer";
 import type { PageSize } from "./lib/pdf/coordinateMapper";
 import { exportPdfWithOverlays } from "./lib/pdf/pdfExporter";
 import {
+  measureTextOverlayBounds,
+  type TextOverlayBounds,
+} from "./lib/text/textOverlayMetrics";
+import {
   addOverlay,
   createSignatureOverlay,
   createStampOverlay,
@@ -32,7 +36,7 @@ import {
   updateTextOverlayText,
   type TextOverlayStylePatch,
 } from "./state/overlayState";
-import type { OverlayPageState } from "./types/overlays";
+import type { OverlayPageState, TextOverlay } from "./types/overlays";
 
 const TEXT_OVERLAY_BASE_POSITION = 96;
 const TEXT_OVERLAY_OFFSET_STEP = 24;
@@ -80,6 +84,35 @@ function App() {
     ) ?? null;
   const canAddOverlay = selectedPdf !== null && isPdfReady;
   const canExportPdf = selectedPdf !== null && isPdfReady;
+
+  function getFittedTextOverlayLayout(
+    overlay: TextOverlay,
+  ): TextOverlayBounds & Partial<Pick<TextOverlay, "x" | "y">> {
+    const bounds = measureTextOverlayBounds({
+      text: overlay.text,
+      fontSize: overlay.fontSize,
+      fontFamily: overlay.fontFamily,
+      bold: overlay.bold,
+      italic: overlay.italic,
+    });
+    const pageSize = previewPageSizes[overlay.pageIndex];
+
+    if (!pageSize) {
+      return bounds;
+    }
+
+    return {
+      ...bounds,
+      x: Math.min(
+        Math.max(0, overlay.x),
+        Math.max(0, pageSize.width - bounds.width),
+      ),
+      y: Math.min(
+        Math.max(0, overlay.y),
+        Math.max(0, pageSize.height - bounds.height),
+      ),
+    };
+  }
 
   function handlePdfSelected(file: SelectedPdfFile) {
     setPickerError(null);
@@ -137,11 +170,16 @@ function App() {
       activePageOverlays.length * TEXT_OVERLAY_OFFSET_STEP,
       TEXT_OVERLAY_MAX_OFFSET,
     );
-    const textOverlay = createTextOverlay({
+    const textOverlayBase = createTextOverlay({
       pageIndex: activePageIndex,
       x: TEXT_OVERLAY_BASE_POSITION + offset,
       y: TEXT_OVERLAY_BASE_POSITION + offset,
     });
+    const textOverlay = {
+      ...textOverlayBase,
+      ...getFittedTextOverlayLayout(textOverlayBase),
+    };
+
     setOverlayState((currentState) => addOverlay(currentState, textOverlay));
     setSelectedOverlayId(textOverlay.id);
   }
@@ -195,22 +233,47 @@ function App() {
   }
 
   function handleSelectedTextChange(text: string) {
-    if (!selectedOverlayId) {
+    if (!selectedOverlayId || selectedOverlay?.type !== "text") {
       return;
     }
 
+    const nextOverlay = {
+      ...selectedOverlay,
+      text,
+    };
+
     setOverlayState((currentState) =>
-      updateTextOverlayText(currentState, selectedOverlayId, text),
+      updateTextOverlayText(
+        currentState,
+        selectedOverlayId,
+        text,
+        getFittedTextOverlayLayout(nextOverlay),
+      ),
     );
   }
 
   function handleSelectedTextStyleChange(patch: TextOverlayStylePatch) {
-    if (!selectedOverlayId) {
+    if (!selectedOverlayId || selectedOverlay?.type !== "text") {
       return;
     }
 
+    const shouldRefit =
+      patch.fontSize !== undefined ||
+      patch.fontFamily !== undefined ||
+      patch.bold !== undefined ||
+      patch.italic !== undefined;
+    const nextOverlay = {
+      ...selectedOverlay,
+      ...patch,
+    };
+
     setOverlayState((currentState) =>
-      updateTextOverlayStyle(currentState, selectedOverlayId, patch),
+      updateTextOverlayStyle(
+        currentState,
+        selectedOverlayId,
+        patch,
+        shouldRefit ? getFittedTextOverlayLayout(nextOverlay) : undefined,
+      ),
     );
   }
 

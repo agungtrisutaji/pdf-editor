@@ -16,6 +16,9 @@ type OverlaySize = {
   width: number;
   height: number;
 };
+
+type TextOverlayLayoutPatch = OverlaySize & Partial<OverlayPosition>;
+
 export type TextOverlayStylePatch = Partial<{
   fontSize: number;
   fontFamily: TextFontFamily;
@@ -159,6 +162,7 @@ export function updateTextOverlayText(
   overlayState: OverlayPageState,
   overlayId: string,
   text: string,
+  layout?: TextOverlayLayoutPatch,
 ): OverlayPageState {
   return Object.fromEntries(
     Object.entries(overlayState).map(([pageIndex, overlays]) => [
@@ -171,6 +175,7 @@ export function updateTextOverlayText(
         return {
           ...overlay,
           text,
+          ...layout,
         };
       }),
     ]),
@@ -181,6 +186,7 @@ export function updateTextOverlayStyle(
   overlayState: OverlayPageState,
   overlayId: string,
   patch: TextOverlayStylePatch,
+  layout?: TextOverlayLayoutPatch,
 ): OverlayPageState {
   return Object.fromEntries(
     Object.entries(overlayState).map(([pageIndex, overlays]) => [
@@ -193,6 +199,7 @@ export function updateTextOverlayStyle(
         return {
           ...overlay,
           ...patch,
+          ...layout,
         };
       }),
     ]),

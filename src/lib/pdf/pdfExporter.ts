@@ -12,6 +12,12 @@ import type {
   TextFontFamily,
 } from "../../types/overlays";
 import {
+  TEXT_OVERLAY_BASELINE_FACTOR,
+  TEXT_OVERLAY_BORDER_WIDTH,
+  TEXT_OVERLAY_HORIZONTAL_PADDING,
+  TEXT_OVERLAY_VERTICAL_PADDING,
+} from "../text/textOverlayMetrics";
+import {
   fitRectContain,
   getPageScale,
   mapPreviewRectToPdfRect,
@@ -156,7 +162,7 @@ function drawTextOverlay({
   pdfPageSize: PageSize;
   fonts: EmbeddedFonts;
 }) {
-  const { scaleY } = getPageScale({ previewPageSize, pdfPageSize });
+  const { scaleX, scaleY } = getPageScale({ previewPageSize, pdfPageSize });
   const font = getTextOverlayFont({
     fonts,
     fontFamily: overlay.fontFamily,
@@ -164,28 +170,35 @@ function drawTextOverlay({
     italic: overlay.italic,
   });
   const fontSize = Math.max(1, overlay.fontSize * scaleY);
-  const topAlignedY = rect.y + Math.max(0, rect.height - fontSize * 1.15);
+  const textInsetX =
+    (TEXT_OVERLAY_HORIZONTAL_PADDING + TEXT_OVERLAY_BORDER_WIDTH) * scaleX;
+  const textInsetY =
+    (TEXT_OVERLAY_VERTICAL_PADDING + TEXT_OVERLAY_BORDER_WIDTH) * scaleY;
+  const textX = rect.x + textInsetX;
+  const contentTopY = rect.y + rect.height - textInsetY;
+  const baselineY = contentTopY - fontSize * TEXT_OVERLAY_BASELINE_FACTOR;
+  const maxTextWidth = Math.max(1, rect.width - textInsetX * 2);
   const color = parseHexColor(overlay.color);
 
   page.drawText(overlay.text, {
-    x: rect.x,
-    y: topAlignedY,
+    x: textX,
+    y: baselineY,
     size: fontSize,
     font,
     color,
-    maxWidth: rect.width,
+    maxWidth: maxTextWidth,
   });
 
   if (overlay.underline) {
     const textWidth = Math.min(
       font.widthOfTextAtSize(overlay.text, fontSize),
-      rect.width,
+      maxTextWidth,
     );
-    const underlineY = topAlignedY - fontSize * 0.12;
+    const underlineY = baselineY - fontSize * 0.12;
 
     page.drawLine({
-      start: { x: rect.x, y: underlineY },
-      end: { x: rect.x + textWidth, y: underlineY },
+      start: { x: textX, y: underlineY },
+      end: { x: textX + textWidth, y: underlineY },
       thickness: Math.max(0.5, fontSize * 0.05),
       color,
     });
