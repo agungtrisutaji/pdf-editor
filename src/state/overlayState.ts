@@ -47,3 +47,25 @@ export function getPageOverlays(
 ): Overlay[] {
   return overlayState[pageIndex] ?? [];
 }
+
+export function updateTextOverlayText(
+  overlayState: OverlayPageState,
+  overlayId: string,
+  text: string,
+): OverlayPageState {
+  return Object.fromEntries(
+    Object.entries(overlayState).map(([pageIndex, overlays]) => [
+      pageIndex,
+      overlays.map((overlay) => {
+        if (overlay.id !== overlayId || overlay.type !== "text") {
+          return overlay;
+        }
+
+        return {
+          ...overlay,
+          text,
+        };
+      }),
+    ]),
+  );
+}
