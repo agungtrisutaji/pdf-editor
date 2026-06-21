@@ -1,8 +1,14 @@
 import { useRef, useState, type ChangeEvent } from "react";
 
+export type SignatureImageInput = {
+  imageDataUrl: string;
+  naturalWidth: number;
+  naturalHeight: number;
+};
+
 type SignatureImagePickerProps = {
   disabled: boolean;
-  onSignatureSelected: (imageDataUrl: string) => void;
+  onSignatureSelected: (signatureImage: SignatureImageInput) => void;
 };
 
 function isSupportedSignatureImage(file: File): boolean {
@@ -35,6 +41,30 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function readImageDimensions(
+  imageDataUrl: string,
+): Promise<{ naturalWidth: number; naturalHeight: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.addEventListener("load", () => {
+      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+        resolve({
+          naturalWidth: image.naturalWidth,
+          naturalHeight: image.naturalHeight,
+        });
+        return;
+      }
+
+      reject(new Error("The selected image dimensions could not be read."));
+    });
+    image.addEventListener("error", () => {
+      reject(new Error("The selected image dimensions could not be read."));
+    });
+    image.src = imageDataUrl;
+  });
+}
+
 export function SignatureImagePicker({
   disabled,
   onSignatureSelected,
@@ -61,7 +91,14 @@ export function SignatureImagePicker({
 
     try {
       const imageDataUrl = await readFileAsDataUrl(file);
-      onSignatureSelected(imageDataUrl);
+      const { naturalWidth, naturalHeight } =
+        await readImageDimensions(imageDataUrl);
+
+      onSignatureSelected({
+        imageDataUrl,
+        naturalWidth,
+        naturalHeight,
+      });
     } catch {
       setErrorMessage("The selected signature image could not be read.");
     } finally {
