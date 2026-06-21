@@ -4,13 +4,15 @@ import {
   PdfFilePicker,
   type SelectedPdfFile,
 } from "./components/pdf/PdfFilePicker";
+import { TextOverlayEditor } from "./components/overlays/TextOverlayEditor";
 import { PdfViewer } from "./components/pdf/PdfViewer";
 import {
   addOverlay,
   createTextOverlay,
   getPageOverlays,
+  updateTextOverlayText,
 } from "./state/overlayState";
-import type { OverlayPageState } from "./types/overlays";
+import type { OverlayPageState, TextOverlay } from "./types/overlays";
 
 function App() {
   const [selectedPdf, setSelectedPdf] = useState<SelectedPdfFile | null>(null);
@@ -18,8 +20,16 @@ function App() {
   const [isPdfReady, setIsPdfReady] = useState(false);
   const [activePageIndex, setActivePageIndex] = useState(0);
   const [overlayState, setOverlayState] = useState<OverlayPageState>({});
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(
+    null,
+  );
 
   const activePageOverlays = getPageOverlays(overlayState, activePageIndex);
+  const selectedTextOverlay =
+    activePageOverlays.find(
+      (overlay): overlay is TextOverlay =>
+        overlay.id === selectedOverlayId && overlay.type === "text",
+    ) ?? null;
   const canAddTextOverlay = selectedPdf !== null && isPdfReady;
 
   function handlePdfSelected(file: SelectedPdfFile) {
@@ -28,6 +38,7 @@ function App() {
     setIsPdfReady(false);
     setActivePageIndex(0);
     setOverlayState({});
+    setSelectedOverlayId(null);
   }
 
   function handlePickerError(message: string) {
@@ -36,6 +47,7 @@ function App() {
     setIsPdfReady(false);
     setActivePageIndex(0);
     setOverlayState({});
+    setSelectedOverlayId(null);
   }
 
   function handleAddTextOverlay() {
@@ -45,6 +57,22 @@ function App() {
 
     const textOverlay = createTextOverlay({ pageIndex: activePageIndex });
     setOverlayState((currentState) => addOverlay(currentState, textOverlay));
+    setSelectedOverlayId(textOverlay.id);
+  }
+
+  function handlePageIndexChange(pageIndex: number) {
+    setActivePageIndex(pageIndex);
+    setSelectedOverlayId(null);
+  }
+
+  function handleSelectedTextChange(text: string) {
+    if (!selectedOverlayId) {
+      return;
+    }
+
+    setOverlayState((currentState) =>
+      updateTextOverlayText(currentState, selectedOverlayId, text),
+    );
   }
 
   return (
@@ -87,6 +115,11 @@ function App() {
           </div>
         </dl>
 
+        <TextOverlayEditor
+          overlay={selectedTextOverlay}
+          onTextChange={handleSelectedTextChange}
+        />
+
         {pickerError ? <p className="error-message">{pickerError}</p> : null}
       </aside>
 
@@ -94,7 +127,9 @@ function App() {
         pdfFile={selectedPdf}
         pageIndex={activePageIndex}
         overlays={selectedPdf ? activePageOverlays : []}
-        onPageIndexChange={setActivePageIndex}
+        selectedOverlayId={selectedOverlayId}
+        onOverlaySelect={setSelectedOverlayId}
+        onPageIndexChange={handlePageIndexChange}
         onDocumentReadyChange={setIsPdfReady}
       />
     </main>
