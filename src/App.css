@@ -108,6 +108,29 @@ input[type="file"] {
   font-size: 0.9rem;
 }
 
+.field-label {
+  color: #172033;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: none;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  padding: 0.65rem;
+  background: #f8fafc;
+  color: #172033;
+  font: inherit;
+}
+
+textarea:focus {
+  border-color: #2563eb;
+  outline: 3px solid #bfdbfe;
+}
+
 .page-summary {
   display: grid;
   gap: 12px;
@@ -135,6 +158,20 @@ input[type="file"] {
   font-weight: 700;
   overflow-wrap: anywhere;
   text-align: right;
+}
+
+.overlay-editor-panel {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e4e9f1;
+  padding-top: 18px;
+}
+
+.overlay-editor-panel h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 1rem;
+  line-height: 1.25;
 }
 
 .viewer-panel {
@@ -231,8 +268,22 @@ input[type="file"] {
   border: 1px dashed #2563eb;
   padding: 6px 8px;
   background: rgba(239, 246, 255, 0.76);
+  cursor: pointer;
   line-height: 1.15;
+  pointer-events: auto;
   white-space: nowrap;
+}
+
+.text-overlay:hover,
+.text-overlay:focus-visible {
+  border-style: solid;
+  outline: 3px solid rgba(147, 197, 253, 0.72);
+  outline-offset: 1px;
+}
+
+.text-overlay.is-selected {
+  border-style: solid;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
 }
 
 .empty-state {
