@@ -1,4 +1,9 @@
-import type { Overlay, OverlayPageState, TextOverlay } from "../types/overlays";
+import type {
+  Overlay,
+  OverlayPageState,
+  SignatureOverlay,
+  TextOverlay,
+} from "../types/overlays";
 
 type OverlayPosition = {
   x: number;
@@ -15,6 +20,16 @@ type CreateTextOverlayInput = {
   id?: string;
   x?: number;
   y?: number;
+};
+
+type CreateSignatureOverlayInput = {
+  pageIndex: number;
+  imageDataUrl: string;
+  id?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
 };
 
 export function createTextOverlay({
@@ -36,6 +51,29 @@ export function createTextOverlay({
     fontSize: 18,
     fontFamily: "Arial, sans-serif",
     color: "#111827",
+  };
+}
+
+export function createSignatureOverlay({
+  pageIndex,
+  imageDataUrl,
+  id = crypto.randomUUID(),
+  x = 96,
+  y = 140,
+  width = 220,
+  height = 90,
+}: CreateSignatureOverlayInput): SignatureOverlay {
+  return {
+    id,
+    type: "signature",
+    pageIndex,
+    x,
+    y,
+    width,
+    height,
+    rotation: 0,
+    imageDataUrl,
+    opacity: 1,
   };
 }
 
