@@ -17,6 +17,13 @@ export type PdfRect = {
   height: number;
 };
 
+export type ContainedRect = {
+  xOffset: number;
+  yOffset: number;
+  width: number;
+  height: number;
+};
+
 export function mapPreviewRectToPdfRect({
   rect,
   previewPageSize,
@@ -67,5 +74,53 @@ export function getPageScale({
   return {
     scaleX: pdfPageSize.width / previewPageSize.width,
     scaleY: pdfPageSize.height / previewPageSize.height,
+  };
+}
+
+export function fitRectContain({
+  containerWidth,
+  containerHeight,
+  contentAspectRatio,
+}: {
+  containerWidth: number;
+  containerHeight: number;
+  contentAspectRatio: number;
+}): ContainedRect {
+  if (
+    containerWidth <= 0 ||
+    containerHeight <= 0 ||
+    contentAspectRatio <= 0 ||
+    !Number.isFinite(contentAspectRatio)
+  ) {
+    return {
+      xOffset: 0,
+      yOffset: 0,
+      width: containerWidth,
+      height: containerHeight,
+    };
+  }
+
+  const containerAspectRatio = containerWidth / containerHeight;
+
+  if (containerAspectRatio > contentAspectRatio) {
+    const height = containerHeight;
+    const width = height * contentAspectRatio;
+
+    return {
+      xOffset: (containerWidth - width) / 2,
+      yOffset: 0,
+      width,
+      height,
+    };
+  }
+
+  const width = containerWidth;
+  const height = width / contentAspectRatio;
+
+  return {
+    xOffset: 0,
+    yOffset: (containerHeight - height) / 2,
+    width,
+    height,
   };
 }
