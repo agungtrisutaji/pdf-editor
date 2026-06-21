@@ -340,7 +340,7 @@ textarea:focus {
 .text-overlay {
   display: flex;
   align-items: center;
-  overflow: hidden;
+  overflow: visible;
   border: 1px dashed #2563eb;
   padding: 6px 8px;
   background: rgba(239, 246, 255, 0.76);
@@ -350,6 +350,14 @@ textarea:focus {
   touch-action: none;
   white-space: nowrap;
   user-select: none;
+}
+
+.text-overlay-content {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .text-overlay:hover,
@@ -366,6 +374,25 @@ textarea:focus {
 
 .text-overlay.is-dragging {
   cursor: grabbing;
+}
+
+.text-overlay.is-resizing {
+  cursor: nwse-resize;
+}
+
+.overlay-resize-handle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #ffffff;
+  border-radius: 3px;
+  background: #2563eb;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.28);
+  cursor: nwse-resize;
+  pointer-events: auto;
+  touch-action: none;
 }
 
 .empty-state {
