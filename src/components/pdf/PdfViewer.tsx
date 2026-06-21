@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type { SelectedPdfFile } from "./PdfFilePicker";
+import { OverlayLayer } from "../overlays/OverlayLayer";
 import {
   clearPdfCanvas,
   createPdfLoadingTask,
@@ -8,28 +9,39 @@ import {
   isPdfRenderCancelError,
   renderPdfPageToCanvas,
 } from "../../lib/pdf/pdfRenderer";
+import type { Overlay } from "../../types/overlays";
 
 type PdfViewerProps = {
   pdfFile: SelectedPdfFile | null;
+  pageIndex: number;
+  overlays: Overlay[];
+  onPageIndexChange: (pageIndex: number) => void;
+  onDocumentReadyChange: (isReady: boolean) => void;
 };
 
 type LoadStatus = "idle" | "loading" | "ready" | "error";
 type RenderStatus = "idle" | "rendering" | "ready" | "error";
 
-export function PdfViewer({ pdfFile }: PdfViewerProps) {
+export function PdfViewer({
+  pdfFile,
+  pageIndex,
+  overlays,
+  onPageIndexChange,
+  onDocumentReadyChange,
+}: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
-  const [pageNumber, setPageNumber] = useState(1);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle");
   const [renderStatus, setRenderStatus] = useState<RenderStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const pageNumber = pageIndex + 1;
 
   useEffect(() => {
     let isCurrentFile = true;
     let loadingTask: PDFDocumentLoadingTask | null = null;
 
     setPdfDocument(null);
-    setPageNumber(1);
+    onDocumentReadyChange(false);
     setErrorMessage(null);
     clearPdfCanvas(canvasRef.current);
 
@@ -51,6 +63,7 @@ export function PdfViewer({ pdfFile }: PdfViewerProps) {
 
         setPdfDocument(document);
         setLoadStatus("ready");
+        onDocumentReadyChange(true);
       })
       .catch((error: unknown) => {
         if (!isCurrentFile) {
@@ -58,6 +71,7 @@ export function PdfViewer({ pdfFile }: PdfViewerProps) {
         }
 
         setLoadStatus("error");
+        onDocumentReadyChange(false);
         setErrorMessage(getPdfErrorMessage(error));
       });
 
@@ -67,7 +81,7 @@ export function PdfViewer({ pdfFile }: PdfViewerProps) {
         void loadingTask.destroy();
       }
     };
-  }, [pdfFile]);
+  }, [onDocumentReadyChange, pdfFile]);
 
   useEffect(() => {
     let isCurrentRender = true;
@@ -123,8 +137,8 @@ export function PdfViewer({ pdfFile }: PdfViewerProps) {
   }, [pdfDocument, pageNumber]);
 
   const totalPages = pdfDocument?.numPages ?? 0;
-  const canGoPrevious = pageNumber > 1;
-  const canGoNext = totalPages > 0 && pageNumber < totalPages;
+  const canGoPrevious = pageIndex > 0;
+  const canGoNext = totalPages > 0 && pageIndex < totalPages - 1;
   const statusText =
     loadStatus === "loading"
       ? "Loading PDF..."
@@ -149,7 +163,7 @@ export function PdfViewer({ pdfFile }: PdfViewerProps) {
         <div className="page-controls" aria-label="Page navigation">
           <button
             type="button"
-            onClick={() => setPageNumber((current) => Math.max(1, current - 1))}
+            onClick={() => onPageIndexChange(Math.max(0, pageIndex - 1))}
             disabled={!canGoPrevious}
           >
             Previous
@@ -161,7 +175,7 @@ export function PdfViewer({ pdfFile }: PdfViewerProps) {
           <button
             type="button"
             onClick={() =>
-              setPageNumber((current) => Math.min(totalPages, current + 1))
+              onPageIndexChange(Math.min(totalPages - 1, pageIndex + 1))
             }
             disabled={!canGoNext}
           >
@@ -179,7 +193,10 @@ export function PdfViewer({ pdfFile }: PdfViewerProps) {
       {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
 
       <div className="canvas-stage">
-        <canvas ref={canvasRef} className="pdf-canvas" />
+        <div className="page-surface">
+          <canvas ref={canvasRef} className="pdf-canvas" />
+          {pdfDocument ? <OverlayLayer overlays={overlays} /> : null}
+        </div>
         {!pdfFile && (
           <div className="empty-state">
             Choose a local PDF file to preview its pages.

@@ -202,11 +202,37 @@ input[type="file"] {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
+.page-surface {
+  position: relative;
+  margin: 28px;
+}
+
 .pdf-canvas {
   display: block;
-  margin: 28px;
   background: #ffffff;
   box-shadow: 0 24px 60px rgba(23, 32, 51, 0.16);
+}
+
+.overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pdf-overlay {
+  position: absolute;
+  transform-origin: center;
+}
+
+.text-overlay {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px dashed #2563eb;
+  padding: 6px 8px;
+  background: rgba(239, 246, 255, 0.76);
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .empty-state {
