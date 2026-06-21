@@ -4,15 +4,23 @@ import {
   PdfFilePicker,
   type SelectedPdfFile,
 } from "./components/pdf/PdfFilePicker";
+import { OverlayList } from "./components/overlays/OverlayList";
 import { TextOverlayEditor } from "./components/overlays/TextOverlayEditor";
 import { PdfViewer } from "./components/pdf/PdfViewer";
 import {
   addOverlay,
   createTextOverlay,
+  deleteOverlay,
   getPageOverlays,
+  moveOverlayBackward,
+  moveOverlayForward,
   updateTextOverlayText,
 } from "./state/overlayState";
 import type { OverlayPageState, TextOverlay } from "./types/overlays";
+
+const TEXT_OVERLAY_BASE_POSITION = 96;
+const TEXT_OVERLAY_OFFSET_STEP = 24;
+const TEXT_OVERLAY_MAX_OFFSET = 240;
 
 function App() {
   const [selectedPdf, setSelectedPdf] = useState<SelectedPdfFile | null>(null);
@@ -55,7 +63,15 @@ function App() {
       return;
     }
 
-    const textOverlay = createTextOverlay({ pageIndex: activePageIndex });
+    const offset = Math.min(
+      activePageOverlays.length * TEXT_OVERLAY_OFFSET_STEP,
+      TEXT_OVERLAY_MAX_OFFSET,
+    );
+    const textOverlay = createTextOverlay({
+      pageIndex: activePageIndex,
+      x: TEXT_OVERLAY_BASE_POSITION + offset,
+      y: TEXT_OVERLAY_BASE_POSITION + offset,
+    });
     setOverlayState((currentState) => addOverlay(currentState, textOverlay));
     setSelectedOverlayId(textOverlay.id);
   }
@@ -73,6 +89,28 @@ function App() {
     setOverlayState((currentState) =>
       updateTextOverlayText(currentState, selectedOverlayId, text),
     );
+  }
+
+  function handleOverlayDelete(overlayId: string) {
+    setOverlayState((currentState) => deleteOverlay(currentState, overlayId));
+
+    if (selectedOverlayId === overlayId) {
+      setSelectedOverlayId(null);
+    }
+  }
+
+  function handleOverlayMoveForward(overlayId: string) {
+    setOverlayState((currentState) =>
+      moveOverlayForward(currentState, activePageIndex, overlayId),
+    );
+    setSelectedOverlayId(overlayId);
+  }
+
+  function handleOverlayMoveBackward(overlayId: string) {
+    setOverlayState((currentState) =>
+      moveOverlayBackward(currentState, activePageIndex, overlayId),
+    );
+    setSelectedOverlayId(overlayId);
   }
 
   return (
@@ -114,6 +152,15 @@ function App() {
             <dd>{selectedPdf ? activePageOverlays.length : "-"}</dd>
           </div>
         </dl>
+
+        <OverlayList
+          overlays={selectedPdf ? activePageOverlays : []}
+          selectedOverlayId={selectedOverlayId}
+          onOverlaySelect={setSelectedOverlayId}
+          onOverlayDelete={handleOverlayDelete}
+          onOverlayMoveForward={handleOverlayMoveForward}
+          onOverlayMoveBackward={handleOverlayMoveBackward}
+        />
 
         <TextOverlayEditor
           overlay={selectedTextOverlay}
