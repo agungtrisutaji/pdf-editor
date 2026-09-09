@@ -24,6 +24,7 @@ import {
   type PageSize,
   type PdfRect,
 } from "./coordinateMapper";
+import { DEFAULT_PAGE_RENDER_SCALE } from "./pdfRenderer";
 
 type ExportPdfWithOverlaysInput = {
   pdfData: ArrayBuffer;
@@ -80,18 +81,21 @@ export async function exportPdfWithOverlays({
   for (const [pageIndexText, overlays] of Object.entries(overlayState)) {
     const pageIndex = Number(pageIndexText);
 
-    if (!Number.isInteger(pageIndex) || overlays.length === 0) {
+    if (
+      !Number.isInteger(pageIndex) ||
+      pageIndex < 0 ||
+      pageIndex >= pdfDocument.getPageCount() ||
+      overlays.length === 0
+    ) {
       continue;
     }
 
     const page = pdfDocument.getPage(pageIndex);
-    const previewPageSize = previewPageSizes[pageIndex];
-
-    if (!previewPageSize) {
-      throw new Error(
-        `Page ${pageIndex + 1} needs to be rendered before export.`,
-      );
-    }
+    const recordedSize = previewPageSizes[pageIndex];
+    const previewPageSize =
+      recordedSize && recordedSize.width > 0 && recordedSize.height > 0
+        ? recordedSize
+        : getFallbackPreviewPageSize(page);
 
     const pdfPageSize = page.getSize();
 
@@ -378,4 +382,20 @@ function parseHexColor(value: string): RGB {
   }
 
   return rgb(0, 0, 0);
+}
+
+export function getFallbackPreviewPageSize(
+  page: PDFPage,
+  renderScale: number = DEFAULT_PAGE_RENDER_SCALE,
+): PageSize {
+  const size = page.getSize();
+  const rotation = Math.abs(page.getRotation().angle % 360);
+  const isTransposed = rotation === 90 || rotation === 270;
+  const unscaledWidth = isTransposed ? size.height : size.width;
+  const unscaledHeight = isTransposed ? size.width : size.height;
+
+  return {
+    width: unscaledWidth * renderScale,
+    height: unscaledHeight * renderScale,
+  };
 }
