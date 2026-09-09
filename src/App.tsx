@@ -9,6 +9,7 @@ import {
   SignatureImagePicker,
   type SignatureImageInput,
 } from "./components/overlays/SignatureImagePicker";
+import { SignaturePadModal } from "./components/overlays/SignaturePadModal";
 import {
   StampPicker,
   type StampPreset,
@@ -71,6 +72,7 @@ function App() {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(
     null,
   );
+  const [isSignaturePadOpen, setIsSignaturePadOpen] = useState(false);
   const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccessMessage, setExportSuccessMessage] = useState<
@@ -122,6 +124,7 @@ function App() {
     setOverlayState({});
     setPreviewPageSizes({});
     setSelectedOverlayId(null);
+    setIsSignaturePadOpen(false);
     setExportStatus("idle");
     setExportError(null);
     setExportSuccessMessage(null);
@@ -135,6 +138,7 @@ function App() {
     setOverlayState({});
     setPreviewPageSizes({});
     setSelectedOverlayId(null);
+    setIsSignaturePadOpen(false);
     setExportStatus("idle");
     setExportError(null);
     setExportSuccessMessage(null);
@@ -374,10 +378,21 @@ function App() {
           onStyleChange={handleSelectedTextStyleChange}
         />
 
-        <SignatureImagePicker
-          disabled={!canAddOverlay}
-          onSignatureSelected={handleSignatureSelected}
-        />
+        <section className="signature-panel" aria-label="Signature overlays">
+          <h2>Signature</h2>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setIsSignaturePadOpen(true)}
+            disabled={!canAddOverlay}
+          >
+            Draw Signature
+          </button>
+          <SignatureImagePicker
+            disabled={!canAddOverlay}
+            onSignatureSelected={handleSignatureSelected}
+          />
+        </section>
 
         <StampPicker
           disabled={!canAddOverlay}
@@ -449,6 +464,12 @@ function App() {
         onPageIndexChange={handlePageIndexChange}
         onDocumentReadyChange={setIsPdfReady}
         onPagePreviewSizeChange={handlePagePreviewSizeChange}
+      />
+
+      <SignaturePadModal
+        isOpen={isSignaturePadOpen}
+        onClose={() => setIsSignaturePadOpen(false)}
+        onSave={handleSignatureSelected}
       />
     </main>
   );
