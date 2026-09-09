@@ -19,6 +19,7 @@ import {
   TEXT_OVERLAY_VERTICAL_PADDING,
 } from "../text/textOverlayMetrics";
 import {
+  DEFAULT_PAGE_RENDER_SCALE,
   fitRectContain,
   getPageScale,
   mapPreviewRectToPdfRect,
@@ -26,7 +27,6 @@ import {
   type PageSize,
   type PdfRect,
 } from "./coordinateMapper";
-import { DEFAULT_PAGE_RENDER_SCALE } from "./pdfRenderer";
 
 type ExportPdfWithOverlaysInput = {
   pdfData: ArrayBuffer;

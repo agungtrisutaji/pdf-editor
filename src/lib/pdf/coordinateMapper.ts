@@ -1,3 +1,5 @@
+export const DEFAULT_PAGE_RENDER_SCALE = 1.4;
+
 export type PreviewRect = {
   x: number;
   y: number;
