@@ -1,4 +1,5 @@
 import {
+  degrees,
   PDFDocument,
   rgb,
   StandardFonts,
@@ -21,6 +22,7 @@ import {
   fitRectContain,
   getPageScale,
   mapPreviewRectToPdfRect,
+  rotateLocalVector,
   type PageSize,
   type PdfRect,
 } from "./coordinateMapper";
@@ -98,12 +100,14 @@ export async function exportPdfWithOverlays({
         : getFallbackPreviewPageSize(page);
 
     const pdfPageSize = page.getSize();
+    const pageRotation = page.getRotation().angle;
 
     for (const overlay of overlays) {
       const rect = mapPreviewRectToPdfRect({
         rect: overlay,
         previewPageSize,
         pdfPageSize,
+        pageRotation,
       });
 
       if (overlay.type === "text") {
@@ -128,13 +132,19 @@ export async function exportPdfWithOverlays({
           containerHeight: rect.height,
           contentAspectRatio: getSignatureAspectRatio(overlay),
         });
+        const offset = rotateLocalVector({
+          x: fittedRect.xOffset,
+          y: fittedRect.yOffset,
+          rotationDegrees: rect.rotationDegrees,
+        });
 
         page.drawImage(image, {
-          x: rect.x + fittedRect.xOffset,
-          y: rect.y + fittedRect.yOffset,
+          x: rect.x + offset.dx,
+          y: rect.y + offset.dy,
           width: fittedRect.width,
           height: fittedRect.height,
           opacity: overlay.opacity,
+          rotate: degrees(rect.rotationDegrees),
         });
         continue;
       }
@@ -166,7 +176,11 @@ function drawTextOverlay({
   pdfPageSize: PageSize;
   fonts: EmbeddedFonts;
 }) {
-  const { scaleX, scaleY } = getPageScale({ previewPageSize, pdfPageSize });
+  const { scaleX, scaleY } = getPageScale({
+    previewPageSize,
+    pdfPageSize,
+    pageRotation: rect.rotationDegrees,
+  });
   const font = getTextOverlayFont({
     fonts,
     fontFamily: overlay.fontFamily,
@@ -178,19 +192,27 @@ function drawTextOverlay({
     (TEXT_OVERLAY_HORIZONTAL_PADDING + TEXT_OVERLAY_BORDER_WIDTH) * scaleX;
   const textInsetY =
     (TEXT_OVERLAY_VERTICAL_PADDING + TEXT_OVERLAY_BORDER_WIDTH) * scaleY;
-  const textX = rect.x + textInsetX;
-  const contentTopY = rect.y + rect.height - textInsetY;
-  const baselineY = contentTopY - fontSize * TEXT_OVERLAY_BASELINE_FACTOR;
+  const localBaselineY =
+    rect.height - textInsetY - fontSize * TEXT_OVERLAY_BASELINE_FACTOR;
   const maxTextWidth = Math.max(1, rect.width - textInsetX * 2);
   const color = parseHexColor(overlay.color);
 
+  const baselineOffset = rotateLocalVector({
+    x: textInsetX,
+    y: localBaselineY,
+    rotationDegrees: rect.rotationDegrees,
+  });
+  const textX = rect.x + baselineOffset.dx;
+  const textY = rect.y + baselineOffset.dy;
+
   page.drawText(overlay.text, {
     x: textX,
-    y: baselineY,
+    y: textY,
     size: fontSize,
     font,
     color,
     maxWidth: maxTextWidth,
+    rotate: degrees(rect.rotationDegrees),
   });
 
   if (overlay.underline) {
@@ -198,11 +220,22 @@ function drawTextOverlay({
       font.widthOfTextAtSize(overlay.text, fontSize),
       maxTextWidth,
     );
-    const underlineY = baselineY - fontSize * 0.12;
+    const underlineOffset = rotateLocalVector({
+      x: 0,
+      y: -fontSize * 0.12,
+      rotationDegrees: rect.rotationDegrees,
+    });
+    const runOffset = rotateLocalVector({
+      x: textWidth,
+      y: 0,
+      rotationDegrees: rect.rotationDegrees,
+    });
+    const startX = textX + underlineOffset.dx;
+    const startY = textY + underlineOffset.dy;
 
     page.drawLine({
-      start: { x: textX, y: underlineY },
-      end: { x: textX + textWidth, y: underlineY },
+      start: { x: startX, y: startY },
+      end: { x: startX + runOffset.dx, y: startY + runOffset.dy },
       thickness: Math.max(0.5, fontSize * 0.05),
       color,
     });
@@ -224,8 +257,14 @@ function drawStampOverlay({
   const borderWidth = Math.max(1.2, Math.min(rect.width, rect.height) * 0.04);
   const fontSize = Math.max(8, Math.min(rect.height * 0.42, rect.width / 9));
   const textWidth = font.widthOfTextAtSize(overlay.label, fontSize);
-  const textX = rect.x + Math.max(0, (rect.width - textWidth) / 2);
-  const textY = rect.y + Math.max(0, (rect.height - fontSize) / 2);
+  const textLocalX = Math.max(0, (rect.width - textWidth) / 2);
+  const textLocalY = Math.max(0, (rect.height - fontSize) / 2);
+
+  const textOffset = rotateLocalVector({
+    x: textLocalX,
+    y: textLocalY,
+    rotationDegrees: rect.rotationDegrees,
+  });
 
   page.drawRectangle({
     x: rect.x,
@@ -237,14 +276,16 @@ function drawStampOverlay({
     color: rgb(1, 1, 1),
     opacity: 0.12,
     borderOpacity: 0.95,
+    rotate: degrees(rect.rotationDegrees),
   });
   page.drawText(overlay.label, {
-    x: textX,
-    y: textY,
+    x: rect.x + textOffset.dx,
+    y: rect.y + textOffset.dy,
     size: fontSize,
     font,
     color,
     maxWidth: rect.width,
+    rotate: degrees(rect.rotationDegrees),
   });
 }
 
