@@ -170,8 +170,12 @@ export function PdfViewer({
     const el = document.getElementById(`pdf-page-${pageIndex}`);
     const container = containerRef.current;
     if (el && container) {
+      const elRect = el.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const scrollPos = container.scrollTop + (elRect.top - containerRect.top) - 24;
+      
       container.scrollTo({
-        top: el.offsetTop - 24, // subtract padding
+        top: scrollPos,
         behavior: 'smooth'
       });
     }
