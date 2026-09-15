@@ -13,7 +13,7 @@ test.describe('PDF Editor Interactions', () => {
     await fileInput.setInputFiles('tests/fixtures/test-document.pdf');
 
     // Wait for PDF to load and status to become 'Ready'
-    await expect(page.locator('.viewer-meta')).toContainText('Ready');
+    await expect(page.locator('.pdf-canvas')).toBeVisible();
     
     // Zoom controls should be enabled
     const zoomInBtn = page.getByRole('button', { name: 'Zoom in' });
@@ -28,7 +28,7 @@ test.describe('PDF Editor Interactions', () => {
     // 1. Upload PDF
     const fileInput = page.locator('#pdf-file-input');
     await fileInput.setInputFiles('tests/fixtures/test-document.pdf');
-    await expect(page.locator('.viewer-meta')).toContainText('Ready');
+    await expect(page.locator('.pdf-canvas')).toBeVisible();
 
     // 2. Click Add Text
     const addTextBtn = page.getByRole('button', { name: 'Add Text' });
@@ -52,7 +52,7 @@ test.describe('PDF Editor Interactions', () => {
 
     // Upload PDF
     await fileInput.setInputFiles('tests/fixtures/test-document.pdf');
-    await expect(page.locator('.viewer-meta')).toContainText('Ready');
+    await expect(page.locator('.pdf-canvas')).toBeVisible();
     
     // Export should now be enabled
     await expect(exportBtn).toBeEnabled();

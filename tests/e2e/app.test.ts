@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test('App should load and display empty state', async ({ page }) => {
   await page.goto('/');
   
-  // Verify main title or branding
-  await expect(page.locator('.viewer-panel p.eyebrow')).toHaveText('Local PDF Viewer');
+  // Verify main title or branding in the sidebar
+  await expect(page.locator('.sidebar h1')).toHaveText('PDF Overlay Editor');
 
   // Verify empty state message
   const emptyState = page.locator('.empty-state');

@@ -293,92 +293,79 @@ export function PdfViewer({
   }
 
   return (
-    <section className="viewer-panel" aria-label="PDF viewer">
-      <div className="viewer-toolbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button 
-            type="button" 
-            className="small-button" 
-            onClick={onToggleSidebar}
-            title={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
-            style={{ padding: '6px 10px', fontSize: '1rem', alignSelf: 'center', marginTop: '6px' }}
-          >
-            {isSidebarOpen ? "◀" : "☰"}
-          </button>
-          <div>
-            <p className="eyebrow" style={{ marginBottom: '2px' }}>Local PDF Viewer</p>
-            <h1 style={{ fontSize: '1.25rem' }}>{pdfFile?.fileName ?? "No file selected"}</h1>
-          </div>
-        </div>
-        <div className="viewer-toolbar-actions">
-          <div className="page-controls" aria-label="Page navigation">
+    <section className='viewer-panel' aria-label='PDF viewer'>
+      <div className='viewer-toolbar' style={{ margin: '0 0 8px', gap: '8px' }}>
+        <button
+          type='button'
+          className='small-button'
+          onClick={onToggleSidebar}
+          title={isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}
+          style={{
+            padding: '6px 10px',
+            fontSize: '1rem',
+          }}>
+          {isSidebarOpen ? '◀' : '☰'}
+        </button>
+
+        <div className='viewer-toolbar-actions' style={{ flex: 1, justifyContent: 'space-between' }}>
+          <div className='page-controls' aria-label='Page navigation'>
             <button
-              type="button"
+              type='button'
+              className='small-button'
               onClick={() => onPageIndexChange(Math.max(0, pageIndex - 1))}
-              disabled={!canGoPrevious}
-            >
-              Previous
+              disabled={!canGoPrevious}>
+              Prev
             </button>
-            <span>
-              Page {totalPages > 0 ? pageNumber : "-"} of{" "}
-              {totalPages > 0 ? totalPages : "-"}
+            <span style={{ minWidth: '80px', textAlign: 'center' }}>
+              {totalPages > 0 ? `${pageNumber} / ${totalPages}` : '-'}
             </span>
             <button
-              type="button"
+              type='button'
+              className='small-button'
               onClick={() =>
                 onPageIndexChange(Math.min(totalPages - 1, pageIndex + 1))
               }
-              disabled={!canGoNext}
-            >
+              disabled={!canGoNext}>
               Next
             </button>
           </div>
 
-          <div className="zoom-controls" aria-label="Zoom controls">
+          <div className='zoom-controls' aria-label='Zoom controls'>
             <button
-              type="button"
-              className="zoom-button"
+              type='button'
+              className='zoom-button'
               onClick={handleZoomOut}
               disabled={!canZoomOut}
-              aria-label="Zoom out"
-              title="Zoom out"
-            >
+              aria-label='Zoom out'
+              title='Zoom out'>
               −
             </button>
             <button
-              type="button"
-              className="zoom-level-button"
+              type='button'
+              className='zoom-level-button'
               onClick={handleResetZoom}
               disabled={!canResetZoom}
-              aria-label="Reset zoom to 100%"
-              title="Click to reset zoom to 100%"
-            >
+              aria-label='Reset zoom to 100%'
+              title='Click to reset zoom to 100%'>
               {zoomPercentage}%
             </button>
             <button
-              type="button"
-              className="zoom-button"
+              type='button'
+              className='zoom-button'
               onClick={handleZoomIn}
               disabled={!canZoomIn}
-              aria-label="Zoom in"
-              title="Zoom in"
-            >
+              aria-label='Zoom in'
+              title='Zoom in'>
               +
             </button>
           </div>
         </div>
       </div>
 
-      <div className="viewer-meta" role="status" aria-live="polite">
-        <span>{statusText}</span>
-        {pdfFile ? <span>{pdfFile.fileName}</span> : null}
-        {totalPages > 0 ? <span>{totalPages} pages</span> : null}
-      </div>
+      {errorMessage ? <p className='error-message'>{errorMessage}</p> : null}
 
-      {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
-
-      <div 
-        className={`canvas-stage${isPanning ? " is-panning" : ""}`}
+      <div
+        className={`canvas-stage${isPanning ? ' is-panning' : ''}`}
         ref={containerRef}
         onClick={(e) => {
           if (e.ctrlKey && canZoomIn) {
@@ -390,10 +377,9 @@ export function PdfViewer({
         onPointerUp={handleStagePointerUp}
         onPointerCancel={handleStagePointerUp}
         onPointerLeave={handleStagePointerUp}
-        style={{ cursor: isPanning ? "grabbing" : "grab" }}
-      >
-        <div className="page-surface">
-          <canvas ref={canvasRef} className="pdf-canvas" />
+        style={{ cursor: isPanning ? 'grabbing' : 'grab' }}>
+        <div className='page-surface'>
+          <canvas ref={canvasRef} className='pdf-canvas' />
           {pdfDocument ? (
             <OverlayLayer
               overlays={overlays}
@@ -405,7 +391,7 @@ export function PdfViewer({
           ) : null}
         </div>
         {!pdfFile && (
-          <div className="empty-state">
+          <div className='empty-state'>
             Choose a local PDF file to preview its pages.
           </div>
         )}
