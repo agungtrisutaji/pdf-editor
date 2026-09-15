@@ -52,6 +52,7 @@ export function PdfViewer({
   onPagePreviewSizeChange,
 }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle");
   const [renderStatus, setRenderStatus] = useState<RenderStatus>("idle");
@@ -209,6 +210,26 @@ export function PdfViewer({
     onZoomChange(DEFAULT_PAGE_RENDER_SCALE);
   }
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    function handleNativeWheel(e: WheelEvent) {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        
+        if (e.deltaY < 0 && canZoomIn) {
+          handleZoomIn();
+        } else if (e.deltaY > 0 && canZoomOut) {
+          handleZoomOut();
+        }
+      }
+    }
+
+    container.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleNativeWheel);
+  }, [canZoomIn, canZoomOut, zoomScale, onZoomChange]);
+
   const statusText =
     loadStatus === "loading"
       ? "Loading PDF..."
@@ -297,7 +318,15 @@ export function PdfViewer({
 
       {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
 
-      <div className="canvas-stage">
+      <div 
+        className="canvas-stage" 
+        ref={containerRef}
+        onClick={(e) => {
+          if (e.ctrlKey && canZoomIn) {
+            handleZoomIn();
+          }
+        }}
+      >
         <div className="page-surface">
           <canvas ref={canvasRef} className="pdf-canvas" />
           {pdfDocument ? (
