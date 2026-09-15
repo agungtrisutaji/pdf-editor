@@ -365,7 +365,7 @@ function App() {
         overlayState,
         previewPageSizes,
       });
-      const downloadResult = downloadPdf({
+      const downloadResult = await downloadPdf({
         pdfBytes: exportedPdf,
         fileName: getExportFileName(selectedPdf.fileName),
       });
@@ -519,13 +519,54 @@ function getExportFileName(fileName: string): string {
   return `${baseName}-exported.pdf`;
 }
 
-function downloadPdf({
+async function downloadPdf({
   pdfBytes,
   fileName,
 }: {
   pdfBytes: Uint8Array;
   fileName: string;
-}): DownloadResult {
+}): Promise<DownloadResult> {
+  // Check if we are running in Tauri
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+  if (isTauri) {
+    try {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+
+      const filePath = await save({
+        filters: [
+          {
+            name: 'PDF Document',
+            extensions: ['pdf'],
+          },
+        ],
+        defaultPath: fileName,
+      });
+
+      if (!filePath) {
+        throw new Error('Export cancelled by user.');
+      }
+
+      const pdfData = pdfBytes.buffer.slice(
+        pdfBytes.byteOffset,
+        pdfBytes.byteOffset + pdfBytes.byteLength,
+      );
+      await writeFile(filePath, new Uint8Array(pdfData));
+
+      return {
+        fileName: filePath,
+        locationHint: 'Saved to selected location.',
+      };
+    } catch (err) {
+      if (err instanceof Error && err.message === 'Export cancelled by user.') {
+        throw err;
+      }
+      console.error('Tauri export failed, falling back to web download:', err);
+    }
+  }
+
+  // Fallback to web download
   const pdfData = pdfBytes.buffer.slice(
     pdfBytes.byteOffset,
     pdfBytes.byteOffset + pdfBytes.byteLength,
