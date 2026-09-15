@@ -129,6 +129,7 @@ export function OverlayLayer({
 
     event.preventDefault();
     event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
     onOverlaySelect(overlay.id);
     setResizeState(null);
     setDragState({
@@ -158,6 +159,7 @@ export function OverlayLayer({
 
     event.preventDefault();
     event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
     onOverlaySelect(overlay.id);
     setDragState(null);
     setResizeState({

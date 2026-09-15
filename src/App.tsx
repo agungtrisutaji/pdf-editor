@@ -31,7 +31,6 @@ import {
   createStampOverlay,
   createTextOverlay,
   deleteOverlay,
-  getPageOverlays,
   moveOverlayBackward,
   moveOverlayForward,
   rescaleOverlays,
@@ -106,9 +105,9 @@ function App() {
     setZoomScale(newScale);
   }
 
-  const activePageOverlays = getPageOverlays(overlayState, activePageIndex);
+  const allOverlays = Object.values(overlayState).flat();
   const selectedOverlay =
-    activePageOverlays.find(
+    allOverlays.find(
       (overlay) => overlay.id === selectedOverlayId,
     ) ?? null;
   const canAddOverlay = selectedPdf !== null && isPdfReady;
@@ -200,7 +199,7 @@ function App() {
     }
 
     const offset = Math.min(
-      activePageOverlays.length * TEXT_OVERLAY_OFFSET_STEP,
+      allOverlays.length * TEXT_OVERLAY_OFFSET_STEP,
       TEXT_OVERLAY_MAX_OFFSET,
     );
     const textOverlayBase = createTextOverlay({
@@ -223,7 +222,7 @@ function App() {
     }
 
     const offset = Math.min(
-      activePageOverlays.length * SIGNATURE_OVERLAY_OFFSET_STEP,
+      allOverlays.length * SIGNATURE_OVERLAY_OFFSET_STEP,
       SIGNATURE_OVERLAY_MAX_OFFSET,
     );
     const signatureOverlay = createSignatureOverlay({
@@ -246,7 +245,7 @@ function App() {
     }
 
     const offset = Math.min(
-      activePageOverlays.length * STAMP_OVERLAY_OFFSET_STEP,
+      allOverlays.length * STAMP_OVERLAY_OFFSET_STEP,
       STAMP_OVERLAY_MAX_OFFSET,
     );
     const stampOverlay = createStampOverlay({
@@ -262,7 +261,6 @@ function App() {
 
   function handlePageIndexChange(pageIndex: number) {
     setActivePageIndex(pageIndex);
-    setSelectedOverlayId(null);
   }
 
   function handleSelectedTextChange(text: string) {
@@ -466,12 +464,12 @@ function App() {
           </div>
           <div>
             <dt>Page overlays</dt>
-            <dd>{selectedPdf ? activePageOverlays.length : "-"}</dd>
+            <dd>{selectedPdf ? allOverlays.length : "-"}</dd>
           </div>
         </dl>
 
         <OverlayList
-          overlays={selectedPdf ? activePageOverlays : []}
+          overlays={selectedPdf ? allOverlays : []}
           selectedOverlayId={selectedOverlayId}
           onOverlaySelect={setSelectedOverlayId}
           onOverlayDelete={handleOverlayDelete}
@@ -484,8 +482,8 @@ function App() {
 
       <PdfViewer
         pdfFile={selectedPdf}
-        pageIndex={activePageIndex}
-        overlays={selectedPdf ? activePageOverlays : []}
+        activePageIndex={activePageIndex}
+        overlays={selectedPdf ? allOverlays : []}
         selectedOverlayId={selectedOverlayId}
         zoomScale={zoomScale}
         onZoomChange={handleZoomChange}

@@ -3,7 +3,6 @@ import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type { SelectedPdfFile } from "./PdfFilePicker";
 import { OverlayLayer } from "../overlays/OverlayLayer";
 import {
-  clearPdfCanvas,
   createPdfLoadingTask,
   getPdfErrorMessage,
   isPdfRenderCancelError,
@@ -15,10 +14,116 @@ import {
   type PageSize,
 } from "../../lib/pdf/coordinateMapper";
 import type { Overlay } from "../../types/overlays";
+import { PdfThumbnails } from "./PdfThumbnails";
+
+type PdfPageProps = {
+  pdfDocument: PDFDocumentProxy;
+  pageIndex: number;
+  zoomScale: number;
+  overlays: Overlay[];
+  selectedOverlayId: string | null;
+  onOverlaySelect: (overlayId: string) => void;
+  onOverlayMove: (overlayId: string, position: { x: number; y: number }) => void;
+  onOverlayResize: (overlayId: string, size: { width: number; height: number }) => void;
+  onPagePreviewSizeChange: (pageIndex: number, size: PageSize) => void;
+  onVisible?: (pageIndex: number) => void;
+};
+
+function PdfPage({
+  pdfDocument,
+  pageIndex,
+  zoomScale,
+  overlays,
+  selectedOverlayId,
+  onOverlaySelect,
+  onOverlayMove,
+  onOverlayResize,
+  onPagePreviewSizeChange,
+  onVisible,
+}: PdfPageProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  
+  useEffect(() => {
+    let isCurrentRender = true;
+    let renderTask: Awaited<ReturnType<typeof renderPdfPageToCanvas>> | null = null;
+
+    if (!canvasRef.current) return;
+
+    renderPdfPageToCanvas({
+      canvas: canvasRef.current,
+      pdfDocument,
+      pageNumber: pageIndex + 1,
+      scale: zoomScale,
+    })
+      .then((task) => {
+        if (!isCurrentRender) {
+          task.cancel();
+          return;
+        }
+        renderTask = task;
+        return task.promise;
+      })
+      .then(() => {
+        if (isCurrentRender) {
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const bounds = canvas.getBoundingClientRect();
+            const width = bounds.width || Number.parseFloat(canvas.style.width) || 0;
+            const height = bounds.height || Number.parseFloat(canvas.style.height) || 0;
+            if (width > 0 && height > 0) {
+              onPagePreviewSizeChange(pageIndex, { width, height });
+            }
+          }
+        }
+      })
+      .catch((error: unknown) => {
+        if (!isCurrentRender || isPdfRenderCancelError(error)) return;
+        console.error("Page render failed:", error);
+      });
+
+    return () => {
+      isCurrentRender = false;
+      renderTask?.cancel();
+    };
+  }, [pageIndex, pdfDocument, zoomScale, onPagePreviewSizeChange]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !onVisible) return;
+    
+    const root = el.closest('.canvas-stage');
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onVisible(pageIndex);
+        }
+      },
+      { root, rootMargin: "-20% 0px -60% 0px", threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pageIndex, onVisible]);
+
+  const pageOverlays = overlays.filter((o) => o.pageIndex === pageIndex);
+
+  return (
+    <div id={`pdf-page-${pageIndex}`} ref={containerRef} className='page-surface' style={{ marginBottom: '24px' }}>
+      <canvas ref={canvasRef} className='pdf-canvas' />
+      <OverlayLayer
+        overlays={pageOverlays}
+        selectedOverlayId={selectedOverlayId}
+        onOverlaySelect={onOverlaySelect}
+        onOverlayMove={onOverlayMove}
+        onOverlayResize={onOverlayResize}
+      />
+    </div>
+  );
+}
 
 type PdfViewerProps = {
   pdfFile: SelectedPdfFile | null;
-  pageIndex: number;
+  activePageIndex: number;
   overlays: Overlay[];
   selectedOverlayId: string | null;
   zoomScale: number;
@@ -29,9 +134,9 @@ type PdfViewerProps = {
     overlayId: string,
     size: { width: number; height: number },
   ) => void;
-  onPageIndexChange: (pageIndex: number) => void;
   onDocumentReadyChange: (isReady: boolean) => void;
   onPagePreviewSizeChange: (pageIndex: number, size: PageSize) => void;
+  onPageIndexChange: (pageIndex: number) => void;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
 };
@@ -39,7 +144,7 @@ type PdfViewerProps = {
 
 export function PdfViewer({
   pdfFile,
-  pageIndex,
+  activePageIndex,
   overlays,
   selectedOverlayId,
   zoomScale,
@@ -47,20 +152,34 @@ export function PdfViewer({
   onOverlaySelect,
   onOverlayMove,
   onOverlayResize,
-  onPageIndexChange,
   onDocumentReadyChange,
   onPagePreviewSizeChange,
+  onPageIndexChange,
   isSidebarOpen,
   onToggleSidebar,
 }: PdfViewerProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
+  const [isThumbnailsOpen, setIsThumbnailsOpen] = useState(false);
   const panStartRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
-  const pageNumber = pageIndex + 1;
+
+  function handleThumbnailClick(pageIndex: number) {
+    const el = document.getElementById(`pdf-page-${pageIndex}`);
+    const container = containerRef.current;
+    if (el && container) {
+      const elRect = el.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const scrollPos = Math.max(0, container.scrollTop + (elRect.top - containerRect.top) - 24);
+      
+      container.scrollTo({
+        top: scrollPos,
+        behavior: 'smooth'
+      });
+    }
+  }
 
   useEffect(() => {
     let isCurrentFile = true;
@@ -69,7 +188,6 @@ export function PdfViewer({
     setPdfDocument(null);
     onDocumentReadyChange(false);
     setErrorMessage(null);
-    clearPdfCanvas(canvasRef.current);
 
     if (!pdfFile) {
       return;
@@ -104,72 +222,7 @@ export function PdfViewer({
     };
   }, [onDocumentReadyChange, pdfFile]);
 
-  useEffect(() => {
-    let isCurrentRender = true;
-    let renderTask:
-      | Awaited<ReturnType<typeof renderPdfPageToCanvas>>
-      | null = null;
-
-    if (!pdfDocument) {
-      return;
-    }
-
-    if (!canvasRef.current) {
-      setErrorMessage("The PDF canvas is not available.");
-      return;
-    }
-
-    setErrorMessage(null);
-
-    renderPdfPageToCanvas({
-      canvas: canvasRef.current,
-      pdfDocument,
-      pageNumber,
-      scale: zoomScale,
-    })
-      .then((task) => {
-        if (!isCurrentRender) {
-          task.cancel();
-          return;
-        }
-
-        renderTask = task;
-        return task.promise;
-      })
-      .then(() => {
-        if (isCurrentRender) {
-
-          const canvas = canvasRef.current;
-          if (canvas) {
-            const bounds = canvas.getBoundingClientRect();
-            const width =
-              bounds.width || Number.parseFloat(canvas.style.width) || 0;
-            const height =
-              bounds.height || Number.parseFloat(canvas.style.height) || 0;
-
-            if (width > 0 && height > 0) {
-              onPagePreviewSizeChange(pageIndex, { width, height });
-            }
-          }
-        }
-      })
-      .catch((error: unknown) => {
-        if (!isCurrentRender || isPdfRenderCancelError(error)) {
-          return;
-        }
-
-        setErrorMessage(getPdfErrorMessage(error));
-      });
-
-    return () => {
-      isCurrentRender = false;
-      renderTask?.cancel();
-    };
-  }, [onPagePreviewSizeChange, pageIndex, pdfDocument, pageNumber, zoomScale]);
-
   const totalPages = pdfDocument?.numPages ?? 0;
-  const canGoPrevious = pageIndex > 0;
-  const canGoNext = totalPages > 0 && pageIndex < totalPages - 1;
 
   const minZoom = ZOOM_LEVELS[0];
   const maxZoom = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
@@ -228,22 +281,23 @@ export function PdfViewer({
     const container = containerRef.current;
     if (!container) return;
 
-    // Prevent panning when clicking on the scrollbar
-    const rect = container.getBoundingClientRect();
-    if (
-      e.clientX > rect.left + container.clientWidth ||
-      e.clientY > rect.top + container.clientHeight
-    ) {
-      return;
-    }
+    // Check if clicked on an overlay or thumbnails sidebar, if so, do not pan
+    if ((e.target as HTMLElement).closest('.pdf-overlay') || (e.target as HTMLElement).closest('.thumbnails-sidebar')) return;
 
+    // Check if clicked on a scrollbar
+    const isClickOnVerticalScrollbar = e.clientX >= container.getBoundingClientRect().right - container.offsetWidth + container.clientWidth;
+    const isClickOnHorizontalScrollbar = e.clientY >= container.getBoundingClientRect().bottom - container.offsetHeight + container.clientHeight;
+    
+    if (isClickOnVerticalScrollbar || isClickOnHorizontalScrollbar) return;
+
+    setIsPanning(true);
     panStartRef.current = {
       x: e.clientX,
       y: e.clientY,
       scrollLeft: container.scrollLeft,
       scrollTop: container.scrollTop,
     };
-    setIsPanning(true);
+    
     e.currentTarget.setPointerCapture(e.pointerId);
   }
 
@@ -252,7 +306,7 @@ export function PdfViewer({
     
     const deltaX = e.clientX - panStartRef.current.x;
     const deltaY = e.clientY - panStartRef.current.y;
-
+    
     containerRef.current.scrollLeft = panStartRef.current.scrollLeft - deltaX;
     containerRef.current.scrollTop = panStartRef.current.scrollTop - deltaY;
   }
@@ -281,28 +335,19 @@ export function PdfViewer({
             }}>
             {isSidebarOpen ? '◀' : '☰'}
           </button>
-          
-          <div className='page-controls' aria-label='Page navigation'>
+          {pdfDocument && (
             <button
               type='button'
               className='small-button'
-              onClick={() => onPageIndexChange(Math.max(0, pageIndex - 1))}
-              disabled={!canGoPrevious}>
-              Prev
+              onClick={() => setIsThumbnailsOpen(!isThumbnailsOpen)}
+              title={isThumbnailsOpen ? 'Close Thumbnails' : 'Open Thumbnails'}
+              style={{
+                padding: '6px 10px',
+                fontSize: '1rem',
+              }}>
+              {isThumbnailsOpen ? '▤' : '▦'}
             </button>
-            <span style={{ minWidth: '70px', textAlign: 'center' }}>
-              {totalPages > 0 ? `${pageNumber} / ${totalPages}` : '-'}
-            </span>
-            <button
-              type='button'
-              className='small-button'
-              onClick={() =>
-                onPageIndexChange(Math.min(totalPages - 1, pageIndex + 1))
-              }
-              disabled={!canGoNext}>
-              Next
-            </button>
-          </div>
+          )}
         </div>
 
         <div 
@@ -357,36 +402,54 @@ export function PdfViewer({
 
       {errorMessage ? <p className='error-message'>{errorMessage}</p> : null}
 
-      <div
-        className={`canvas-stage${isPanning ? ' is-panning' : ''}`}
-        ref={containerRef}
-        onClick={(e) => {
-          if (e.ctrlKey && canZoomIn) {
-            handleZoomIn();
-          }
-        }}
-        onPointerDown={handleStagePointerDown}
-        onPointerMove={handleStagePointerMove}
-        onPointerUp={handleStagePointerUp}
-        onPointerCancel={handleStagePointerUp}
-        onPointerLeave={handleStagePointerUp}
-        style={{ cursor: isPanning ? 'grabbing' : 'grab' }}>
-        <div className='page-surface'>
-          <canvas ref={canvasRef} className='pdf-canvas' />
-          {pdfDocument ? (
-            <OverlayLayer
-              overlays={overlays}
-              selectedOverlayId={selectedOverlayId}
-              onOverlaySelect={onOverlaySelect}
-              onOverlayMove={onOverlayMove}
-              onOverlayResize={onOverlayResize}
-            />
-          ) : null}
-        </div>
-        {!pdfFile && (
-          <div className='empty-state'>
-            Choose a local PDF file to preview its pages.
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <div
+          className={`canvas-stage${isPanning ? ' is-panning' : ''}`}
+          ref={containerRef}
+          onClick={(e) => {
+            if (e.ctrlKey && canZoomIn) {
+              handleZoomIn();
+            }
+          }}
+          onPointerDown={handleStagePointerDown}
+          onPointerMove={handleStagePointerMove}
+          onPointerUp={handleStagePointerUp}
+          onPointerCancel={handleStagePointerUp}
+          onPointerLeave={handleStagePointerUp}
+          style={{ cursor: isPanning ? 'grabbing' : 'grab' }}>
+          
+          <div className="pdf-pages-stack">
+            {pdfDocument ? (
+              Array.from({ length: totalPages }).map((_, index) => (
+                <PdfPage
+                  key={index}
+                  pageIndex={index}
+                  pdfDocument={pdfDocument}
+                  zoomScale={zoomScale}
+                  overlays={overlays}
+                  selectedOverlayId={selectedOverlayId}
+                  onOverlaySelect={onOverlaySelect}
+                  onOverlayMove={onOverlayMove}
+                  onOverlayResize={onOverlayResize}
+                  onPagePreviewSizeChange={onPagePreviewSizeChange}
+                  onVisible={onPageIndexChange}
+                />
+              ))
+            ) : (
+              <div className='empty-state' style={{ marginTop: 'auto', marginBottom: 'auto' }}>
+                Choose a local PDF file to preview its pages.
+              </div>
+            )}
           </div>
+        </div>
+
+        {isThumbnailsOpen && pdfDocument && (
+          <PdfThumbnails
+            pdfDocument={pdfDocument}
+            totalPages={totalPages}
+            activePageIndex={activePageIndex}
+            onThumbnailClick={handleThumbnailClick}
+          />
         )}
       </div>
     </section>
