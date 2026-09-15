@@ -20,6 +20,7 @@ type PdfPageProps = {
   pdfDocument: PDFDocumentProxy;
   pageIndex: number;
   zoomScale: number;
+  displayScale: number;
   overlays: Overlay[];
   selectedOverlayId: string | null;
   onOverlaySelect: (overlayId: string) => void;
@@ -33,6 +34,7 @@ function PdfPage({
   pdfDocument,
   pageIndex,
   zoomScale,
+  displayScale,
   overlays,
   selectedOverlayId,
   onOverlaySelect,
@@ -112,6 +114,7 @@ function PdfPage({
       <canvas ref={canvasRef} className='pdf-canvas' />
       <OverlayLayer
         overlays={pageOverlays}
+        displayScale={displayScale}
         selectedOverlayId={selectedOverlayId}
         onOverlaySelect={onOverlaySelect}
         onOverlayMove={onOverlayMove}
@@ -127,6 +130,7 @@ type PdfViewerProps = {
   overlays: Overlay[];
   selectedOverlayId: string | null;
   zoomScale: number;
+  displayScale: number;
   onZoomChange: (scale: number) => void;
   onOverlaySelect: (overlayId: string) => void;
   onOverlayMove: (overlayId: string, position: { x: number; y: number }) => void;
@@ -148,6 +152,7 @@ export function PdfViewer({
   overlays,
   selectedOverlayId,
   zoomScale,
+  displayScale,
   onZoomChange,
   onOverlaySelect,
   onOverlayMove,
@@ -405,6 +410,7 @@ export function PdfViewer({
                   pageIndex={index}
                   pdfDocument={pdfDocument}
                   zoomScale={zoomScale}
+                  displayScale={displayScale}
                   overlays={overlays}
                   selectedOverlayId={selectedOverlayId}
                   onOverlaySelect={onOverlaySelect}

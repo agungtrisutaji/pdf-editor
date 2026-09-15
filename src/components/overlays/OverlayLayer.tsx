@@ -34,6 +34,7 @@ type ResizeState = {
 
 type OverlayLayerProps = {
   overlays: Overlay[];
+  displayScale: number;
   selectedOverlayId: string | null;
   onOverlaySelect: (overlayId: string) => void;
   onOverlayMove: (overlayId: string, position: OverlayPosition) => void;
@@ -45,6 +46,7 @@ const MIN_OVERLAY_HEIGHT = 24;
 
 export function OverlayLayer({
   overlays,
+  displayScale,
   selectedOverlayId,
   onOverlaySelect,
   onOverlayMove,
@@ -53,6 +55,8 @@ export function OverlayLayer({
   const layerRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
+  const displayScaleRef = useRef(displayScale);
+  displayScaleRef.current = displayScale;
 
   function getPointerPosition(event: PointerEvent<HTMLElement>) {
     const layerBounds = layerRef.current?.getBoundingClientRect();
@@ -182,28 +186,33 @@ export function OverlayLayer({
 
       const pointerX = event.clientX - layerBounds.left;
       const pointerY = event.clientY - layerBounds.top;
-      const layerWidth = layerBounds.width;
-      const layerHeight = layerBounds.height;
+      const scale = displayScaleRef.current;
+      const semanticLayerWidth = layerBounds.width / scale;
+      const semanticLayerHeight = layerBounds.height / scale;
 
       if (dragState) {
+        const semanticDeltaX = (pointerX - dragState.pointerStartX) / scale;
+        const semanticDeltaY = (pointerY - dragState.pointerStartY) / scale;
         const nextPosition = clampOverlayPosition({
-          x: dragState.overlayStartX + (pointerX - dragState.pointerStartX),
-          y: dragState.overlayStartY + (pointerY - dragState.pointerStartY),
+          x: dragState.overlayStartX + semanticDeltaX,
+          y: dragState.overlayStartY + semanticDeltaY,
           overlayWidth: dragState.overlayWidth,
           overlayHeight: dragState.overlayHeight,
-          layerWidth,
-          layerHeight,
+          layerWidth: semanticLayerWidth,
+          layerHeight: semanticLayerHeight,
         });
         onOverlayMove(dragState.overlayId, nextPosition);
       } else if (resizeState) {
         event.preventDefault(); // Stop text selection during resize
+        const semanticDeltaX = (pointerX - resizeState.pointerStartX) / scale;
+        const semanticDeltaY = (pointerY - resizeState.pointerStartY) / scale;
         const nextSize = clampOverlaySize({
-          width: resizeState.overlayStartWidth + (pointerX - resizeState.pointerStartX),
-          height: resizeState.overlayStartHeight + (pointerY - resizeState.pointerStartY),
+          width: resizeState.overlayStartWidth + semanticDeltaX,
+          height: resizeState.overlayStartHeight + semanticDeltaY,
           overlayX: resizeState.overlayX,
           overlayY: resizeState.overlayY,
-          layerWidth,
-          layerHeight,
+          layerWidth: semanticLayerWidth,
+          layerHeight: semanticLayerHeight,
         });
         onOverlayResize(resizeState.overlayId, nextSize);
       }
@@ -249,16 +258,16 @@ export function OverlayLayer({
               }
             }}
             style={{
-              left: overlay.x,
-              top: overlay.y,
-              width: overlay.width,
-              height: overlay.height,
+              left: overlay.x * displayScale,
+              top: overlay.y * displayScale,
+              width: overlay.width * displayScale,
+              height: overlay.height * displayScale,
               transform: `rotate(${overlay.rotation}deg)`,
               ...(overlay.type === "text"
                 ? {
                     color: overlay.color,
                     fontFamily: getTextOverlayCssFontFamily(overlay.fontFamily),
-                    fontSize: overlay.fontSize,
+                    fontSize: overlay.fontSize * displayScale,
                     fontStyle: overlay.italic ? "italic" : "normal",
                     fontWeight: overlay.bold ? 700 : 400,
                     textDecoration: overlay.underline ? "underline" : "none",

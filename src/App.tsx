@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import "./App.css";
 import {
   PdfFilePicker,
@@ -33,7 +33,6 @@ import {
   deleteOverlay,
   moveOverlayBackward,
   moveOverlayForward,
-  rescaleOverlays,
   updateOverlayPosition,
   updateOverlaySize,
   updateTextOverlayStyle,
@@ -76,6 +75,9 @@ function App() {
     null,
   );
   const [zoomScale, setZoomScale] = useState(DEFAULT_PAGE_RENDER_SCALE);
+  const zoomScaleRef = useRef(zoomScale);
+  zoomScaleRef.current = zoomScale;
+  const displayScale = zoomScale / DEFAULT_PAGE_RENDER_SCALE;
   const [isSignaturePadOpen, setIsSignaturePadOpen] = useState(false);
   const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
   const [exportError, setExportError] = useState<string | null>(null);
@@ -89,19 +91,6 @@ function App() {
       return;
     }
 
-    const factor = newScale / zoomScale;
-    setOverlayState((currentState) => rescaleOverlays(currentState, factor));
-    setPreviewPageSizes((currentSizes) =>
-      Object.fromEntries(
-        Object.entries(currentSizes).map(([page, size]) => [
-          page,
-          {
-            width: Math.round(size.width * factor * 100) / 100,
-            height: Math.round(size.height * factor * 100) / 100,
-          },
-        ]),
-      ),
-    );
     setZoomScale(newScale);
   }
 
@@ -174,19 +163,27 @@ function App() {
 
   const handlePagePreviewSizeChange = useCallback(
     (pageIndexToUpdate: number, size: PageSize) => {
+      const currentDisplayScale =
+        zoomScaleRef.current / DEFAULT_PAGE_RENDER_SCALE;
+      const baseSize: PageSize = {
+        width: size.width / currentDisplayScale,
+        height: size.height / currentDisplayScale,
+      };
+
       setPreviewPageSizes((currentSizes) => {
         const currentSize = currentSizes[pageIndexToUpdate];
 
         if (
-          currentSize?.width === size.width &&
-          currentSize.height === size.height
+          currentSize &&
+          Math.abs(currentSize.width - baseSize.width) < 0.5 &&
+          Math.abs(currentSize.height - baseSize.height) < 0.5
         ) {
           return currentSizes;
         }
 
         return {
           ...currentSizes,
-          [pageIndexToUpdate]: size,
+          [pageIndexToUpdate]: baseSize,
         };
       });
     },
@@ -492,6 +489,7 @@ function App() {
         overlays={selectedPdf ? allOverlays : []}
         selectedOverlayId={selectedOverlayId}
         zoomScale={zoomScale}
+        displayScale={displayScale}
         onZoomChange={handleZoomChange}
         onOverlaySelect={setSelectedOverlayId}
         onOverlayMove={handleOverlayPositionChange}
