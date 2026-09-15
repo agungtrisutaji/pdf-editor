@@ -92,13 +92,14 @@ function PdfPage({
     const el = containerRef.current;
     if (!el || !onVisible) return;
     
+    const root = el.closest('.canvas-stage');
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
           onVisible(pageIndex);
         }
       },
-      { rootMargin: "-40% 0px -40% 0px", threshold: 0 }
+      { root, rootMargin: "-20% 0px -60% 0px", threshold: 0 }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -167,8 +168,12 @@ export function PdfViewer({
 
   function handleThumbnailClick(pageIndex: number) {
     const el = document.getElementById(`pdf-page-${pageIndex}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+    const container = containerRef.current;
+    if (el && container) {
+      container.scrollTo({
+        top: el.offsetTop - 24, // subtract padding
+        behavior: 'smooth'
+      });
     }
   }
 
@@ -393,21 +398,45 @@ export function PdfViewer({
 
       {errorMessage ? <p className='error-message'>{errorMessage}</p> : null}
 
-      <div
-        className={`canvas-stage${isPanning ? ' is-panning' : ''}`}
-        ref={containerRef}
-        onClick={(e) => {
-          if (e.ctrlKey && canZoomIn) {
-            handleZoomIn();
-          }
-        }}
-        onPointerDown={handleStagePointerDown}
-        onPointerMove={handleStagePointerMove}
-        onPointerUp={handleStagePointerUp}
-        onPointerCancel={handleStagePointerUp}
-        onPointerLeave={handleStagePointerUp}
-        style={{ cursor: isPanning ? 'grabbing' : 'grab', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0' }}>
-        
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <div
+          className={`canvas-stage${isPanning ? ' is-panning' : ''}`}
+          ref={containerRef}
+          onClick={(e) => {
+            if (e.ctrlKey && canZoomIn) {
+              handleZoomIn();
+            }
+          }}
+          onPointerDown={handleStagePointerDown}
+          onPointerMove={handleStagePointerMove}
+          onPointerUp={handleStagePointerUp}
+          onPointerCancel={handleStagePointerUp}
+          onPointerLeave={handleStagePointerUp}
+          style={{ cursor: isPanning ? 'grabbing' : 'grab', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0' }}>
+          
+          {pdfDocument ? (
+            Array.from({ length: totalPages }).map((_, index) => (
+              <PdfPage
+                key={index}
+                pageIndex={index}
+                pdfDocument={pdfDocument}
+                zoomScale={zoomScale}
+                overlays={overlays}
+                selectedOverlayId={selectedOverlayId}
+                onOverlaySelect={onOverlaySelect}
+                onOverlayMove={onOverlayMove}
+                onOverlayResize={onOverlayResize}
+                onPagePreviewSizeChange={onPagePreviewSizeChange}
+                onVisible={onPageIndexChange}
+              />
+            ))
+          ) : (
+            <div className='empty-state' style={{ marginTop: 'auto', marginBottom: 'auto' }}>
+              Choose a local PDF file to preview its pages.
+            </div>
+          )}
+        </div>
+
         {isThumbnailsOpen && pdfDocument && (
           <PdfThumbnails
             pdfDocument={pdfDocument}
@@ -415,27 +444,6 @@ export function PdfViewer({
             activePageIndex={activePageIndex}
             onThumbnailClick={handleThumbnailClick}
           />
-        )}
-        {pdfDocument ? (
-          Array.from({ length: totalPages }).map((_, index) => (
-            <PdfPage
-              key={index}
-              pageIndex={index}
-              pdfDocument={pdfDocument}
-              zoomScale={zoomScale}
-              overlays={overlays}
-              selectedOverlayId={selectedOverlayId}
-              onOverlaySelect={onOverlaySelect}
-              onOverlayMove={onOverlayMove}
-              onOverlayResize={onOverlayResize}
-              onPagePreviewSizeChange={onPagePreviewSizeChange}
-              onVisible={onPageIndexChange}
-            />
-          ))
-        ) : (
-          <div className='empty-state' style={{ marginTop: 'auto', marginBottom: 'auto' }}>
-            Choose a local PDF file to preview its pages.
-          </div>
         )}
       </div>
     </section>

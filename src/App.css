@@ -884,21 +884,14 @@ input[type="color"]:focus {
 
 
 .thumbnails-sidebar {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
   width: 140px;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  background: #f8fafc;
+  border-left: 1px solid #cfd7e3;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  z-index: 10;
 }
 
 .thumbnail-item {
