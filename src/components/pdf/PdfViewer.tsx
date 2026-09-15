@@ -81,7 +81,7 @@ function PdfPage({
       (entries) => {
         setShouldRender(entries[0].isIntersecting);
       },
-      { root, rootMargin: "150% 0px 150% 0px", threshold: 0 }
+      { root, rootMargin: "2000px 0px 2000px 0px", threshold: 0 }
     );
     observer.observe(el);
     return () => observer.disconnect();
