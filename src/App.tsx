@@ -526,43 +526,36 @@ async function downloadPdf({
   pdfBytes: Uint8Array;
   fileName: string;
 }): Promise<DownloadResult> {
-  // Check if we are running in Tauri
-  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-
-  if (isTauri) {
+  // Try File System Access API first (works natively in WebView2/Edge)
+  if ('showSaveFilePicker' in window) {
     try {
-      const { save } = await import('@tauri-apps/plugin-dialog');
-      const { writeFile } = await import('@tauri-apps/plugin-fs');
-
-      const filePath = await save({
-        filters: [
+      const handle = await (window as any).showSaveFilePicker({
+        suggestedName: fileName,
+        types: [
           {
-            name: 'PDF Document',
-            extensions: ['pdf'],
+            description: 'PDF Document',
+            accept: { 'application/pdf': ['.pdf'] },
           },
         ],
-        defaultPath: fileName,
       });
-
-      if (!filePath) {
-        throw new Error('Export cancelled by user.');
-      }
-
+      const writable = await handle.createWritable();
+      
       const pdfData = pdfBytes.buffer.slice(
         pdfBytes.byteOffset,
         pdfBytes.byteOffset + pdfBytes.byteLength,
       );
-      await writeFile(filePath, new Uint8Array(pdfData));
+      await writable.write(pdfData);
+      await writable.close();
 
       return {
-        fileName: filePath,
+        fileName: handle.name,
         locationHint: 'Saved to selected location.',
       };
     } catch (err) {
-      if (err instanceof Error && err.message === 'Export cancelled by user.') {
-        throw err;
+      if ((err as Error).name === 'AbortError') {
+        throw new Error('Export cancelled by user.');
       }
-      console.error('Tauri export failed, falling back to web download:', err);
+      console.error('File System Access API failed, falling back to web download:', err);
     }
   }
 
