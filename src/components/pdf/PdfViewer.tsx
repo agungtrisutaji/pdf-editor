@@ -98,7 +98,7 @@ function PdfPage({
           onVisible(pageIndex);
         }
       },
-      { threshold: 0.5 }
+      { rootMargin: "-40% 0px -40% 0px", threshold: 0 }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -272,8 +272,8 @@ export function PdfViewer({
     const container = containerRef.current;
     if (!container) return;
 
-    // Check if clicked on an overlay, if so, do not pan
-    if ((e.target as HTMLElement).closest('.pdf-overlay')) return;
+    // Check if clicked on an overlay or thumbnails sidebar, if so, do not pan
+    if ((e.target as HTMLElement).closest('.pdf-overlay') || (e.target as HTMLElement).closest('.thumbnails-sidebar')) return;
 
     // Check if clicked on a scrollbar
     const isClickOnVerticalScrollbar = e.clientX >= container.getBoundingClientRect().right - container.offsetWidth + container.clientWidth;

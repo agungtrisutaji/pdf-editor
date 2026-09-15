@@ -67,6 +67,7 @@ function PdfThumbnailItem({
 
   return (
     <div
+      id={`thumbnail-item-${pageIndex}`}
       ref={containerRef}
       className={`thumbnail-item ${isActive ? "is-active" : ""}`}
       onClick={() => onClick(pageIndex)}
@@ -98,6 +99,13 @@ export function PdfThumbnails({
   activePageIndex,
   onThumbnailClick,
 }: PdfThumbnailsProps) {
+  useEffect(() => {
+    const activeThumbnail = document.getElementById(`thumbnail-item-${activePageIndex}`);
+    if (activeThumbnail) {
+      activeThumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [activePageIndex]);
+
   return (
     <div className="thumbnails-sidebar">
       {Array.from({ length: totalPages }).map((_, index) => (
