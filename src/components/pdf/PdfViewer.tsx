@@ -322,52 +322,31 @@ export function PdfViewer({
 
   return (
     <section className='viewer-panel' aria-label='PDF viewer'>
-      <div className='viewer-toolbar' style={{ margin: '0 0 8px', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+      <div className='viewer-toolbar'>
+        <div className='viewer-toolbar-left'>
           <button
             type='button'
-            className='small-button'
+            className='small-button icon-toggle-button'
             onClick={onToggleSidebar}
-            title={isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}
-            style={{
-              padding: '6px 10px',
-              fontSize: '1rem',
-            }}>
+            title={isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}>
             {isSidebarOpen ? '◀' : '☰'}
           </button>
           {pdfDocument && (
             <button
               type='button'
-              className='small-button'
+              className='small-button icon-toggle-button'
               onClick={() => setIsThumbnailsOpen(!isThumbnailsOpen)}
-              title={isThumbnailsOpen ? 'Close Thumbnails' : 'Open Thumbnails'}
-              style={{
-                padding: '6px 10px',
-                fontSize: '1rem',
-              }}>
+              title={isThumbnailsOpen ? 'Close Thumbnails' : 'Open Thumbnails'}>
               {isThumbnailsOpen ? '▤' : '▦'}
             </button>
           )}
         </div>
 
-        <div 
-          style={{ 
-            flex: '0 1 auto', 
-            fontWeight: 600, 
-            color: '#334155',
-            fontSize: '0.9rem',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            padding: '0 16px',
-            maxWidth: '40%'
-          }}
-          title={pdfFile?.fileName ?? 'No file selected'}
-        >
+        <div className='viewer-toolbar-title' title={pdfFile?.fileName ?? 'No file selected'}>
           {pdfFile?.fileName ?? 'No file selected'}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', flex: 1, minWidth: 0 }}>
+        <div className='viewer-toolbar-right'>
           <div className='zoom-controls' aria-label='Zoom controls'>
             <button
               type='button'
@@ -402,7 +381,7 @@ export function PdfViewer({
 
       {errorMessage ? <p className='error-message'>{errorMessage}</p> : null}
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className='viewer-workspace'>
         <div
           className={`canvas-stage${isPanning ? ' is-panning' : ''}`}
           ref={containerRef}
