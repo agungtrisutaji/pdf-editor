@@ -16,7 +16,10 @@ import {
 } from "./components/overlays/StampPicker";
 import { TextOverlayEditor } from "./components/overlays/TextOverlayEditor";
 import { PdfViewer } from "./components/pdf/PdfViewer";
-import type { PageSize } from "./lib/pdf/coordinateMapper";
+import {
+  DEFAULT_PAGE_RENDER_SCALE,
+  type PageSize,
+} from "./lib/pdf/coordinateMapper";
 import { exportPdfWithOverlays } from "./lib/pdf/pdfExporter";
 import {
   measureTextOverlayBounds,
@@ -31,6 +34,7 @@ import {
   getPageOverlays,
   moveOverlayBackward,
   moveOverlayForward,
+  rescaleOverlays,
   updateOverlayPosition,
   updateOverlaySize,
   updateTextOverlayStyle,
@@ -72,12 +76,34 @@ function App() {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(
     null,
   );
+  const [zoomScale, setZoomScale] = useState(DEFAULT_PAGE_RENDER_SCALE);
   const [isSignaturePadOpen, setIsSignaturePadOpen] = useState(false);
   const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccessMessage, setExportSuccessMessage] = useState<
     string | null
   >(null);
+
+  function handleZoomChange(newScale: number) {
+    if (newScale <= 0 || newScale === zoomScale || !Number.isFinite(newScale)) {
+      return;
+    }
+
+    const factor = newScale / zoomScale;
+    setOverlayState((currentState) => rescaleOverlays(currentState, factor));
+    setPreviewPageSizes((currentSizes) =>
+      Object.fromEntries(
+        Object.entries(currentSizes).map(([page, size]) => [
+          page,
+          {
+            width: Math.round(size.width * factor * 100) / 100,
+            height: Math.round(size.height * factor * 100) / 100,
+          },
+        ]),
+      ),
+    );
+    setZoomScale(newScale);
+  }
 
   const activePageOverlays = getPageOverlays(overlayState, activePageIndex);
   const selectedOverlay =
@@ -125,6 +151,7 @@ function App() {
     setPreviewPageSizes({});
     setSelectedOverlayId(null);
     setIsSignaturePadOpen(false);
+    setZoomScale(DEFAULT_PAGE_RENDER_SCALE);
     setExportStatus("idle");
     setExportError(null);
     setExportSuccessMessage(null);
@@ -139,6 +166,7 @@ function App() {
     setPreviewPageSizes({});
     setSelectedOverlayId(null);
     setIsSignaturePadOpen(false);
+    setZoomScale(DEFAULT_PAGE_RENDER_SCALE);
     setExportStatus("idle");
     setExportError(null);
     setExportSuccessMessage(null);
@@ -458,6 +486,8 @@ function App() {
         pageIndex={activePageIndex}
         overlays={selectedPdf ? activePageOverlays : []}
         selectedOverlayId={selectedOverlayId}
+        zoomScale={zoomScale}
+        onZoomChange={handleZoomChange}
         onOverlaySelect={setSelectedOverlayId}
         onOverlayMove={handleOverlayPositionChange}
         onOverlayResize={handleOverlaySizeChange}

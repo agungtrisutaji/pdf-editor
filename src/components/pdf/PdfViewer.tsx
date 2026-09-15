@@ -9,7 +9,11 @@ import {
   isPdfRenderCancelError,
   renderPdfPageToCanvas,
 } from "../../lib/pdf/pdfRenderer";
-import type { PageSize } from "../../lib/pdf/coordinateMapper";
+import {
+  DEFAULT_PAGE_RENDER_SCALE,
+  ZOOM_LEVELS,
+  type PageSize,
+} from "../../lib/pdf/coordinateMapper";
 import type { Overlay } from "../../types/overlays";
 
 type PdfViewerProps = {
@@ -17,6 +21,8 @@ type PdfViewerProps = {
   pageIndex: number;
   overlays: Overlay[];
   selectedOverlayId: string | null;
+  zoomScale: number;
+  onZoomChange: (scale: number) => void;
   onOverlaySelect: (overlayId: string) => void;
   onOverlayMove: (overlayId: string, position: { x: number; y: number }) => void;
   onOverlayResize: (
@@ -36,6 +42,8 @@ export function PdfViewer({
   pageIndex,
   overlays,
   selectedOverlayId,
+  zoomScale,
+  onZoomChange,
   onOverlaySelect,
   onOverlayMove,
   onOverlayResize,
@@ -67,9 +75,10 @@ export function PdfViewer({
 
     setLoadStatus("loading");
     setRenderStatus("idle");
-    loadingTask = createPdfLoadingTask(pdfFile.data);
+    const activeLoadingTask = createPdfLoadingTask(pdfFile.data);
+    loadingTask = activeLoadingTask;
 
-    loadingTask.promise
+    activeLoadingTask.promise
       .then((document) => {
         if (!isCurrentFile) {
           return;
@@ -120,6 +129,7 @@ export function PdfViewer({
       canvas: canvasRef.current,
       pdfDocument,
       pageNumber,
+      scale: zoomScale,
     })
       .then((task) => {
         if (!isCurrentRender) {
@@ -161,11 +171,44 @@ export function PdfViewer({
       isCurrentRender = false;
       renderTask?.cancel();
     };
-  }, [onPagePreviewSizeChange, pageIndex, pdfDocument, pageNumber]);
+  }, [onPagePreviewSizeChange, pageIndex, pdfDocument, pageNumber, zoomScale]);
 
   const totalPages = pdfDocument?.numPages ?? 0;
   const canGoPrevious = pageIndex > 0;
   const canGoNext = totalPages > 0 && pageIndex < totalPages - 1;
+
+  const minZoom = ZOOM_LEVELS[0];
+  const maxZoom = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
+  const zoomPercentage = Math.round(
+    (zoomScale / DEFAULT_PAGE_RENDER_SCALE) * 100,
+  );
+  const canZoomIn = pdfFile !== null && zoomScale < maxZoom - 0.01;
+  const canZoomOut = pdfFile !== null && zoomScale > minZoom + 0.01;
+  const canResetZoom =
+    pdfFile !== null &&
+    Math.abs(zoomScale - DEFAULT_PAGE_RENDER_SCALE) > 0.01;
+
+  function handleZoomIn() {
+    const nextZoom =
+      ZOOM_LEVELS.find((level) => level > zoomScale + 0.01) ?? maxZoom;
+    onZoomChange(nextZoom);
+  }
+
+  function handleZoomOut() {
+    const previousLevels = ZOOM_LEVELS.filter(
+      (level) => level < zoomScale - 0.01,
+    );
+    const nextZoom =
+      previousLevels.length > 0
+        ? previousLevels[previousLevels.length - 1]
+        : minZoom;
+    onZoomChange(nextZoom);
+  }
+
+  function handleResetZoom() {
+    onZoomChange(DEFAULT_PAGE_RENDER_SCALE);
+  }
+
   const statusText =
     loadStatus === "loading"
       ? "Loading PDF..."
@@ -187,27 +230,62 @@ export function PdfViewer({
           <h1>{pdfFile?.fileName ?? "No file selected"}</h1>
         </div>
 
-        <div className="page-controls" aria-label="Page navigation">
-          <button
-            type="button"
-            onClick={() => onPageIndexChange(Math.max(0, pageIndex - 1))}
-            disabled={!canGoPrevious}
-          >
-            Previous
-          </button>
-          <span>
-            Page {totalPages > 0 ? pageNumber : "-"} of{" "}
-            {totalPages > 0 ? totalPages : "-"}
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              onPageIndexChange(Math.min(totalPages - 1, pageIndex + 1))
-            }
-            disabled={!canGoNext}
-          >
-            Next
-          </button>
+        <div className="viewer-toolbar-actions">
+          <div className="page-controls" aria-label="Page navigation">
+            <button
+              type="button"
+              onClick={() => onPageIndexChange(Math.max(0, pageIndex - 1))}
+              disabled={!canGoPrevious}
+            >
+              Previous
+            </button>
+            <span>
+              Page {totalPages > 0 ? pageNumber : "-"} of{" "}
+              {totalPages > 0 ? totalPages : "-"}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                onPageIndexChange(Math.min(totalPages - 1, pageIndex + 1))
+              }
+              disabled={!canGoNext}
+            >
+              Next
+            </button>
+          </div>
+
+          <div className="zoom-controls" aria-label="Zoom controls">
+            <button
+              type="button"
+              className="zoom-button"
+              onClick={handleZoomOut}
+              disabled={!canZoomOut}
+              aria-label="Zoom out"
+              title="Zoom out"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              className="zoom-level-button"
+              onClick={handleResetZoom}
+              disabled={!canResetZoom}
+              aria-label="Reset zoom to 100%"
+              title="Click to reset zoom to 100%"
+            >
+              {zoomPercentage}%
+            </button>
+            <button
+              type="button"
+              className="zoom-button"
+              onClick={handleZoomIn}
+              disabled={!canZoomIn}
+              aria-label="Zoom in"
+              title="Zoom in"
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
 

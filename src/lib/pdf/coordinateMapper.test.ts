@@ -28,6 +28,39 @@ describe("coordinateMapper", () => {
       expect(mapped.height).toBeCloseTo(50, 1);
     });
 
+    it("maintains consistent mapped PDF coordinates across different zoom scales", () => {
+      const originalRect = { x: 70, y: 140, width: 140, height: 70 };
+      const originalMapped = mapPreviewRectToPdfRect({
+        rect: originalRect,
+        previewPageSize,
+        pdfPageSize,
+        pageRotation: 0,
+      });
+
+      const zoomFactor = 1.5;
+      const zoomedPreview = {
+        width: previewPageSize.width * zoomFactor,
+        height: previewPageSize.height * zoomFactor,
+      };
+      const zoomedRect = {
+        x: originalRect.x * zoomFactor,
+        y: originalRect.y * zoomFactor,
+        width: originalRect.width * zoomFactor,
+        height: originalRect.height * zoomFactor,
+      };
+      const zoomedMapped = mapPreviewRectToPdfRect({
+        rect: zoomedRect,
+        previewPageSize: zoomedPreview,
+        pdfPageSize,
+        pageRotation: 0,
+      });
+
+      expect(zoomedMapped.x).toBeCloseTo(originalMapped.x, 1);
+      expect(zoomedMapped.y).toBeCloseTo(originalMapped.y, 1);
+      expect(zoomedMapped.width).toBeCloseTo(originalMapped.width, 1);
+      expect(zoomedMapped.height).toBeCloseTo(originalMapped.height, 1);
+    });
+
     it("maps coordinates correctly for 90 degree rotated pages", () => {
       // For 90 degree page, preview width is based on PDF height and preview height on PDF width
       const rotatedPreview = { width: 842 * 1.4, height: 595 * 1.4 };

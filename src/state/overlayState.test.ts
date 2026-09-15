@@ -8,6 +8,7 @@ import {
   getPageOverlays,
   moveOverlayBackward,
   moveOverlayForward,
+  rescaleOverlays,
   updateOverlayPosition,
   updateOverlaySize,
   updateTextOverlayStyle,
@@ -153,5 +154,60 @@ describe("overlayState", () => {
 
     state = deleteOverlay(state, "1");
     expect(getPageOverlays(state, 0)).toEqual([o2]);
+  });
+
+  describe("rescaleOverlays", () => {
+    it("rescales positions, dimensions, and font sizes proportionally", () => {
+      let state: OverlayPageState = {};
+      const text = createTextOverlay({ pageIndex: 0, id: "text-1", x: 100, y: 200 });
+      text.width = 150;
+      text.height = 40;
+      text.fontSize = 20;
+
+      const stamp = createStampOverlay({
+        pageIndex: 0,
+        id: "stamp-1",
+        label: "CONFIDENTIAL",
+        color: "#dc2626",
+        x: 50,
+        y: 80,
+        width: 100,
+        height: 50,
+      });
+
+      state = addOverlay(state, text);
+      state = addOverlay(state, stamp);
+
+      // Scale by 1.5x (e.g. from 100% to 150%)
+      const scaledState = rescaleOverlays(state, 1.5);
+      const scaledOverlays = getPageOverlays(scaledState, 0);
+
+      const scaledText = scaledOverlays.find((o) => o.id === "text-1");
+      expect(scaledText).toBeDefined();
+      expect(scaledText?.x).toBe(150);
+      expect(scaledText?.y).toBe(300);
+      expect(scaledText?.width).toBe(225);
+      expect(scaledText?.height).toBe(60);
+      if (scaledText?.type === "text") {
+        expect(scaledText.fontSize).toBe(30);
+      }
+
+      const scaledStamp = scaledOverlays.find((o) => o.id === "stamp-1");
+      expect(scaledStamp?.x).toBe(75);
+      expect(scaledStamp?.y).toBe(120);
+      expect(scaledStamp?.width).toBe(150);
+      expect(scaledStamp?.height).toBe(75);
+    });
+
+    it("returns original state when factor is 1 or invalid", () => {
+      let state: OverlayPageState = {};
+      const text = createTextOverlay({ pageIndex: 0, id: "text-1", x: 100, y: 100 });
+      state = addOverlay(state, text);
+
+      expect(rescaleOverlays(state, 1)).toBe(state);
+      expect(rescaleOverlays(state, 0)).toBe(state);
+      expect(rescaleOverlays(state, -1.5)).toBe(state);
+      expect(rescaleOverlays(state, Number.NaN)).toBe(state);
+    });
   });
 });
