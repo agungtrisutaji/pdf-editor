@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent } from "react";
+import { useRef, useState, useEffect, type PointerEvent } from "react";
 import { getTextOverlayCssFontFamily } from "../../lib/text/textOverlayMetrics";
 import type { Overlay } from "../../types/overlays";
 
@@ -128,7 +128,6 @@ export function OverlayLayer({
     }
 
     event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
     onOverlaySelect(overlay.id);
     setResizeState(null);
     setDragState({
@@ -140,44 +139,6 @@ export function OverlayLayer({
       overlayWidth: overlay.width,
       overlayHeight: overlay.height,
     });
-  }
-
-  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
-    if (!dragState) {
-      return;
-    }
-
-    const pointerPosition = getPointerPosition(event);
-
-    if (!pointerPosition) {
-      return;
-    }
-
-    const nextPosition = clampOverlayPosition({
-      x:
-        dragState.overlayStartX +
-        (pointerPosition.x - dragState.pointerStartX),
-      y:
-        dragState.overlayStartY +
-        (pointerPosition.y - dragState.pointerStartY),
-      overlayWidth: dragState.overlayWidth,
-      overlayHeight: dragState.overlayHeight,
-      layerWidth: pointerPosition.layerWidth,
-      layerHeight: pointerPosition.layerHeight,
-    });
-
-    onOverlayMove(dragState.overlayId, nextPosition);
-  }
-
-  function finishDrag(event: PointerEvent<HTMLDivElement>) {
-    if (!dragState) {
-      return;
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    setDragState(null);
   }
 
   function handleResizePointerDown(
@@ -196,7 +157,6 @@ export function OverlayLayer({
 
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
     onOverlaySelect(overlay.id);
     setDragState(null);
     setResizeState({
@@ -210,48 +170,57 @@ export function OverlayLayer({
     });
   }
 
-  function handleResizePointerMove(event: PointerEvent<HTMLSpanElement>) {
-    if (!resizeState) {
-      return;
+  useEffect(() => {
+    if (!dragState && !resizeState) return;
+
+    function handleGlobalPointerMove(event: globalThis.PointerEvent) {
+      const layerBounds = layerRef.current?.getBoundingClientRect();
+      if (!layerBounds) return;
+
+      const pointerX = event.clientX - layerBounds.left;
+      const pointerY = event.clientY - layerBounds.top;
+      const layerWidth = layerBounds.width;
+      const layerHeight = layerBounds.height;
+
+      if (dragState) {
+        const nextPosition = clampOverlayPosition({
+          x: dragState.overlayStartX + (pointerX - dragState.pointerStartX),
+          y: dragState.overlayStartY + (pointerY - dragState.pointerStartY),
+          overlayWidth: dragState.overlayWidth,
+          overlayHeight: dragState.overlayHeight,
+          layerWidth,
+          layerHeight,
+        });
+        onOverlayMove(dragState.overlayId, nextPosition);
+      } else if (resizeState) {
+        event.preventDefault(); // Stop text selection during resize
+        const nextSize = clampOverlaySize({
+          width: resizeState.overlayStartWidth + (pointerX - resizeState.pointerStartX),
+          height: resizeState.overlayStartHeight + (pointerY - resizeState.pointerStartY),
+          overlayX: resizeState.overlayX,
+          overlayY: resizeState.overlayY,
+          layerWidth,
+          layerHeight,
+        });
+        onOverlayResize(resizeState.overlayId, nextSize);
+      }
     }
 
-    const pointerPosition = getPointerPosition(event);
-
-    if (!pointerPosition) {
-      return;
+    function handleGlobalPointerUp() {
+      setDragState(null);
+      setResizeState(null);
     }
 
-    event.preventDefault();
-    event.stopPropagation();
+    window.addEventListener("pointermove", handleGlobalPointerMove);
+    window.addEventListener("pointerup", handleGlobalPointerUp);
+    window.addEventListener("pointercancel", handleGlobalPointerUp);
 
-    const nextSize = clampOverlaySize({
-      width:
-        resizeState.overlayStartWidth +
-        (pointerPosition.x - resizeState.pointerStartX),
-      height:
-        resizeState.overlayStartHeight +
-        (pointerPosition.y - resizeState.pointerStartY),
-      overlayX: resizeState.overlayX,
-      overlayY: resizeState.overlayY,
-      layerWidth: pointerPosition.layerWidth,
-      layerHeight: pointerPosition.layerHeight,
-    });
-
-    onOverlayResize(resizeState.overlayId, nextSize);
-  }
-
-  function finishResize(event: PointerEvent<HTMLSpanElement>) {
-    if (!resizeState) {
-      return;
-    }
-
-    event.stopPropagation();
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    setResizeState(null);
-  }
+    return () => {
+      window.removeEventListener("pointermove", handleGlobalPointerMove);
+      window.removeEventListener("pointerup", handleGlobalPointerUp);
+      window.removeEventListener("pointercancel", handleGlobalPointerUp);
+    };
+  }, [dragState, resizeState, onOverlayMove, onOverlayResize]);
 
   return (
     <div ref={layerRef} className="overlay-layer" aria-label="PDF overlays">
@@ -270,9 +239,6 @@ export function OverlayLayer({
             aria-pressed={overlay.id === selectedOverlayId}
             onClick={() => onOverlaySelect(overlay.id)}
             onPointerDown={(event) => handlePointerDown(event, overlay)}
-            onPointerMove={handlePointerMove}
-            onPointerUp={finishDrag}
-            onPointerCancel={finishDrag}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
@@ -317,9 +283,6 @@ export function OverlayLayer({
                 aria-hidden="true"
                 onClick={(event) => event.stopPropagation()}
                 onPointerDown={(event) => handleResizePointerDown(event, overlay)}
-                onPointerMove={handleResizePointerMove}
-                onPointerUp={finishResize}
-                onPointerCancel={finishResize}
               />
             ) : null}
           </div>
