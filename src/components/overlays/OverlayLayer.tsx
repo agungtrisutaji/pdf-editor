@@ -128,6 +128,7 @@ export function OverlayLayer({
     }
 
     event.preventDefault();
+    event.stopPropagation();
     onOverlaySelect(overlay.id);
     setResizeState(null);
     setDragState({

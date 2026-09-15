@@ -57,6 +57,8 @@ export function PdfViewer({
   const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle");
   const [renderStatus, setRenderStatus] = useState<RenderStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
   const pageNumber = pageIndex + 1;
 
   useEffect(() => {
@@ -243,6 +245,49 @@ export function PdfViewer({
           ? "Ready"
           : "No PDF selected";
 
+  function handleStagePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0) return; // Only left click
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Prevent panning when clicking on the scrollbar
+    const rect = container.getBoundingClientRect();
+    if (
+      e.clientX > rect.left + container.clientWidth ||
+      e.clientY > rect.top + container.clientHeight
+    ) {
+      return;
+    }
+
+    panStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    };
+    setIsPanning(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function handleStagePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isPanning || !panStartRef.current || !containerRef.current) return;
+    
+    const deltaX = e.clientX - panStartRef.current.x;
+    const deltaY = e.clientY - panStartRef.current.y;
+
+    containerRef.current.scrollLeft = panStartRef.current.scrollLeft - deltaX;
+    containerRef.current.scrollTop = panStartRef.current.scrollTop - deltaY;
+  }
+
+  function handleStagePointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isPanning) return;
+    setIsPanning(false);
+    panStartRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }
+
   return (
     <section className="viewer-panel" aria-label="PDF viewer">
       <div className="viewer-toolbar">
@@ -319,13 +364,19 @@ export function PdfViewer({
       {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
 
       <div 
-        className="canvas-stage" 
+        className={`canvas-stage${isPanning ? " is-panning" : ""}`}
         ref={containerRef}
         onClick={(e) => {
           if (e.ctrlKey && canZoomIn) {
             handleZoomIn();
           }
         }}
+        onPointerDown={handleStagePointerDown}
+        onPointerMove={handleStagePointerMove}
+        onPointerUp={handleStagePointerUp}
+        onPointerCancel={handleStagePointerUp}
+        onPointerLeave={handleStagePointerUp}
+        style={{ cursor: isPanning ? "grabbing" : "grab" }}
       >
         <div className="page-surface">
           <canvas ref={canvasRef} className="pdf-canvas" />
