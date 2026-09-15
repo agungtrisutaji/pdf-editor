@@ -36,8 +36,6 @@ type PdfViewerProps = {
   onToggleSidebar: () => void;
 };
 
-type LoadStatus = "idle" | "loading" | "ready" | "error";
-type RenderStatus = "idle" | "rendering" | "ready" | "error";
 
 export function PdfViewer({
   pdfFile,
@@ -58,8 +56,7 @@ export function PdfViewer({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle");
-  const [renderStatus, setRenderStatus] = useState<RenderStatus>("idle");
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
@@ -75,13 +72,9 @@ export function PdfViewer({
     clearPdfCanvas(canvasRef.current);
 
     if (!pdfFile) {
-      setLoadStatus("idle");
-      setRenderStatus("idle");
       return;
     }
 
-    setLoadStatus("loading");
-    setRenderStatus("idle");
     const activeLoadingTask = createPdfLoadingTask(pdfFile.data);
     loadingTask = activeLoadingTask;
 
@@ -92,7 +85,6 @@ export function PdfViewer({
         }
 
         setPdfDocument(document);
-        setLoadStatus("ready");
         onDocumentReadyChange(true);
       })
       .catch((error: unknown) => {
@@ -100,7 +92,6 @@ export function PdfViewer({
           return;
         }
 
-        setLoadStatus("error");
         onDocumentReadyChange(false);
         setErrorMessage(getPdfErrorMessage(error));
       });
@@ -124,12 +115,10 @@ export function PdfViewer({
     }
 
     if (!canvasRef.current) {
-      setRenderStatus("error");
       setErrorMessage("The PDF canvas is not available.");
       return;
     }
 
-    setRenderStatus("rendering");
     setErrorMessage(null);
 
     renderPdfPageToCanvas({
@@ -149,7 +138,6 @@ export function PdfViewer({
       })
       .then(() => {
         if (isCurrentRender) {
-          setRenderStatus("ready");
 
           const canvas = canvasRef.current;
           if (canvas) {
@@ -170,7 +158,6 @@ export function PdfViewer({
           return;
         }
 
-        setRenderStatus("error");
         setErrorMessage(getPdfErrorMessage(error));
       });
 
@@ -236,19 +223,6 @@ export function PdfViewer({
     return () => container.removeEventListener("wheel", handleNativeWheel);
   }, [canZoomIn, canZoomOut, zoomScale, onZoomChange]);
 
-  const statusText =
-    loadStatus === "loading"
-      ? "Loading PDF..."
-      : loadStatus === "error"
-        ? "Could not open PDF"
-      : renderStatus === "rendering"
-        ? "Rendering page..."
-        : renderStatus === "error"
-          ? "Page render failed"
-        : loadStatus === "ready"
-          ? "Ready"
-          : "No PDF selected";
-
   function handleStagePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (e.button !== 0) return; // Only left click
     const container = containerRef.current;
@@ -295,19 +269,19 @@ export function PdfViewer({
   return (
     <section className='viewer-panel' aria-label='PDF viewer'>
       <div className='viewer-toolbar' style={{ margin: '0 0 8px', gap: '8px' }}>
-        <button
-          type='button'
-          className='small-button'
-          onClick={onToggleSidebar}
-          title={isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}
-          style={{
-            padding: '6px 10px',
-            fontSize: '1rem',
-          }}>
-          {isSidebarOpen ? '◀' : '☰'}
-        </button>
-
-        <div className='viewer-toolbar-actions' style={{ flex: 1, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+          <button
+            type='button'
+            className='small-button'
+            onClick={onToggleSidebar}
+            title={isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}
+            style={{
+              padding: '6px 10px',
+              fontSize: '1rem',
+            }}>
+            {isSidebarOpen ? '◀' : '☰'}
+          </button>
+          
           <div className='page-controls' aria-label='Page navigation'>
             <button
               type='button'
@@ -316,7 +290,7 @@ export function PdfViewer({
               disabled={!canGoPrevious}>
               Prev
             </button>
-            <span style={{ minWidth: '80px', textAlign: 'center' }}>
+            <span style={{ minWidth: '70px', textAlign: 'center' }}>
               {totalPages > 0 ? `${pageNumber} / ${totalPages}` : '-'}
             </span>
             <button
@@ -329,7 +303,26 @@ export function PdfViewer({
               Next
             </button>
           </div>
+        </div>
 
+        <div 
+          style={{ 
+            flex: '0 1 auto', 
+            fontWeight: 600, 
+            color: '#334155',
+            fontSize: '0.9rem',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            padding: '0 16px',
+            maxWidth: '40%'
+          }}
+          title={pdfFile?.fileName ?? 'No file selected'}
+        >
+          {pdfFile?.fileName ?? 'No file selected'}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', flex: 1, minWidth: 0 }}>
           <div className='zoom-controls' aria-label='Zoom controls'>
             <button
               type='button'
