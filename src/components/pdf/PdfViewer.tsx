@@ -9,7 +9,11 @@ import {
   isPdfRenderCancelError,
   renderPdfPageToCanvas,
 } from "../../lib/pdf/pdfRenderer";
-import type { PageSize } from "../../lib/pdf/coordinateMapper";
+import {
+  DEFAULT_PAGE_RENDER_SCALE,
+  ZOOM_LEVELS,
+  type PageSize,
+} from "../../lib/pdf/coordinateMapper";
 import type { Overlay } from "../../types/overlays";
 
 type PdfViewerProps = {
@@ -17,6 +21,8 @@ type PdfViewerProps = {
   pageIndex: number;
   overlays: Overlay[];
   selectedOverlayId: string | null;
+  zoomScale: number;
+  onZoomChange: (scale: number) => void;
   onOverlaySelect: (overlayId: string) => void;
   onOverlayMove: (overlayId: string, position: { x: number; y: number }) => void;
   onOverlayResize: (
@@ -26,28 +32,34 @@ type PdfViewerProps = {
   onPageIndexChange: (pageIndex: number) => void;
   onDocumentReadyChange: (isReady: boolean) => void;
   onPagePreviewSizeChange: (pageIndex: number, size: PageSize) => void;
+  isSidebarOpen: boolean;
+  onToggleSidebar: () => void;
 };
 
-type LoadStatus = "idle" | "loading" | "ready" | "error";
-type RenderStatus = "idle" | "rendering" | "ready" | "error";
 
 export function PdfViewer({
   pdfFile,
   pageIndex,
   overlays,
   selectedOverlayId,
+  zoomScale,
+  onZoomChange,
   onOverlaySelect,
   onOverlayMove,
   onOverlayResize,
   onPageIndexChange,
   onDocumentReadyChange,
   onPagePreviewSizeChange,
+  isSidebarOpen,
+  onToggleSidebar,
 }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle");
-  const [renderStatus, setRenderStatus] = useState<RenderStatus>("idle");
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
   const pageNumber = pageIndex + 1;
 
   useEffect(() => {
@@ -60,23 +72,19 @@ export function PdfViewer({
     clearPdfCanvas(canvasRef.current);
 
     if (!pdfFile) {
-      setLoadStatus("idle");
-      setRenderStatus("idle");
       return;
     }
 
-    setLoadStatus("loading");
-    setRenderStatus("idle");
-    loadingTask = createPdfLoadingTask(pdfFile.data);
+    const activeLoadingTask = createPdfLoadingTask(pdfFile.data);
+    loadingTask = activeLoadingTask;
 
-    loadingTask.promise
+    activeLoadingTask.promise
       .then((document) => {
         if (!isCurrentFile) {
           return;
         }
 
         setPdfDocument(document);
-        setLoadStatus("ready");
         onDocumentReadyChange(true);
       })
       .catch((error: unknown) => {
@@ -84,7 +92,6 @@ export function PdfViewer({
           return;
         }
 
-        setLoadStatus("error");
         onDocumentReadyChange(false);
         setErrorMessage(getPdfErrorMessage(error));
       });
@@ -108,18 +115,17 @@ export function PdfViewer({
     }
 
     if (!canvasRef.current) {
-      setRenderStatus("error");
       setErrorMessage("The PDF canvas is not available.");
       return;
     }
 
-    setRenderStatus("rendering");
     setErrorMessage(null);
 
     renderPdfPageToCanvas({
       canvas: canvasRef.current,
       pdfDocument,
       pageNumber,
+      scale: zoomScale,
     })
       .then((task) => {
         if (!isCurrentRender) {
@@ -132,7 +138,6 @@ export function PdfViewer({
       })
       .then(() => {
         if (isCurrentRender) {
-          setRenderStatus("ready");
 
           const canvas = canvasRef.current;
           if (canvas) {
@@ -153,7 +158,6 @@ export function PdfViewer({
           return;
         }
 
-        setRenderStatus("error");
         setErrorMessage(getPdfErrorMessage(error));
       });
 
@@ -161,67 +165,214 @@ export function PdfViewer({
       isCurrentRender = false;
       renderTask?.cancel();
     };
-  }, [onPagePreviewSizeChange, pageIndex, pdfDocument, pageNumber]);
+  }, [onPagePreviewSizeChange, pageIndex, pdfDocument, pageNumber, zoomScale]);
 
   const totalPages = pdfDocument?.numPages ?? 0;
   const canGoPrevious = pageIndex > 0;
   const canGoNext = totalPages > 0 && pageIndex < totalPages - 1;
-  const statusText =
-    loadStatus === "loading"
-      ? "Loading PDF..."
-      : loadStatus === "error"
-        ? "Could not open PDF"
-      : renderStatus === "rendering"
-        ? "Rendering page..."
-        : renderStatus === "error"
-          ? "Page render failed"
-        : loadStatus === "ready"
-          ? "Ready"
-          : "No PDF selected";
+
+  const minZoom = ZOOM_LEVELS[0];
+  const maxZoom = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
+  const zoomPercentage = Math.round(
+    (zoomScale / DEFAULT_PAGE_RENDER_SCALE) * 100,
+  );
+  const canZoomIn = pdfFile !== null && zoomScale < maxZoom - 0.01;
+  const canZoomOut = pdfFile !== null && zoomScale > minZoom + 0.01;
+  const canResetZoom =
+    pdfFile !== null &&
+    Math.abs(zoomScale - DEFAULT_PAGE_RENDER_SCALE) > 0.01;
+
+  function handleZoomIn() {
+    const nextZoom =
+      ZOOM_LEVELS.find((level) => level > zoomScale + 0.01) ?? maxZoom;
+    onZoomChange(nextZoom);
+  }
+
+  function handleZoomOut() {
+    const previousLevels = ZOOM_LEVELS.filter(
+      (level) => level < zoomScale - 0.01,
+    );
+    const nextZoom =
+      previousLevels.length > 0
+        ? previousLevels[previousLevels.length - 1]
+        : minZoom;
+    onZoomChange(nextZoom);
+  }
+
+  function handleResetZoom() {
+    onZoomChange(DEFAULT_PAGE_RENDER_SCALE);
+  }
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    function handleNativeWheel(e: WheelEvent) {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        
+        if (e.deltaY < 0 && canZoomIn) {
+          handleZoomIn();
+        } else if (e.deltaY > 0 && canZoomOut) {
+          handleZoomOut();
+        }
+      }
+    }
+
+    container.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleNativeWheel);
+  }, [canZoomIn, canZoomOut, zoomScale, onZoomChange]);
+
+  function handleStagePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0) return; // Only left click
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Prevent panning when clicking on the scrollbar
+    const rect = container.getBoundingClientRect();
+    if (
+      e.clientX > rect.left + container.clientWidth ||
+      e.clientY > rect.top + container.clientHeight
+    ) {
+      return;
+    }
+
+    panStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    };
+    setIsPanning(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function handleStagePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isPanning || !panStartRef.current || !containerRef.current) return;
+    
+    const deltaX = e.clientX - panStartRef.current.x;
+    const deltaY = e.clientY - panStartRef.current.y;
+
+    containerRef.current.scrollLeft = panStartRef.current.scrollLeft - deltaX;
+    containerRef.current.scrollTop = panStartRef.current.scrollTop - deltaY;
+  }
+
+  function handleStagePointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isPanning) return;
+    setIsPanning(false);
+    panStartRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }
 
   return (
-    <section className="viewer-panel" aria-label="PDF viewer">
-      <div className="viewer-toolbar">
-        <div>
-          <p className="eyebrow">Local PDF Viewer</p>
-          <h1>{pdfFile?.fileName ?? "No file selected"}</h1>
+    <section className='viewer-panel' aria-label='PDF viewer'>
+      <div className='viewer-toolbar' style={{ margin: '0 0 8px', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+          <button
+            type='button'
+            className='small-button'
+            onClick={onToggleSidebar}
+            title={isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}
+            style={{
+              padding: '6px 10px',
+              fontSize: '1rem',
+            }}>
+            {isSidebarOpen ? '◀' : '☰'}
+          </button>
+          
+          <div className='page-controls' aria-label='Page navigation'>
+            <button
+              type='button'
+              className='small-button'
+              onClick={() => onPageIndexChange(Math.max(0, pageIndex - 1))}
+              disabled={!canGoPrevious}>
+              Prev
+            </button>
+            <span style={{ minWidth: '70px', textAlign: 'center' }}>
+              {totalPages > 0 ? `${pageNumber} / ${totalPages}` : '-'}
+            </span>
+            <button
+              type='button'
+              className='small-button'
+              onClick={() =>
+                onPageIndexChange(Math.min(totalPages - 1, pageIndex + 1))
+              }
+              disabled={!canGoNext}>
+              Next
+            </button>
+          </div>
         </div>
 
-        <div className="page-controls" aria-label="Page navigation">
-          <button
-            type="button"
-            onClick={() => onPageIndexChange(Math.max(0, pageIndex - 1))}
-            disabled={!canGoPrevious}
-          >
-            Previous
-          </button>
-          <span>
-            Page {totalPages > 0 ? pageNumber : "-"} of{" "}
-            {totalPages > 0 ? totalPages : "-"}
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              onPageIndexChange(Math.min(totalPages - 1, pageIndex + 1))
-            }
-            disabled={!canGoNext}
-          >
-            Next
-          </button>
+        <div 
+          style={{ 
+            flex: '0 1 auto', 
+            fontWeight: 600, 
+            color: '#334155',
+            fontSize: '0.9rem',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            padding: '0 16px',
+            maxWidth: '40%'
+          }}
+          title={pdfFile?.fileName ?? 'No file selected'}
+        >
+          {pdfFile?.fileName ?? 'No file selected'}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', flex: 1, minWidth: 0 }}>
+          <div className='zoom-controls' aria-label='Zoom controls'>
+            <button
+              type='button'
+              className='zoom-button'
+              onClick={handleZoomOut}
+              disabled={!canZoomOut}
+              aria-label='Zoom out'
+              title='Zoom out'>
+              −
+            </button>
+            <button
+              type='button'
+              className='zoom-level-button'
+              onClick={handleResetZoom}
+              disabled={!canResetZoom}
+              aria-label='Reset zoom to 100%'
+              title='Click to reset zoom to 100%'>
+              {zoomPercentage}%
+            </button>
+            <button
+              type='button'
+              className='zoom-button'
+              onClick={handleZoomIn}
+              disabled={!canZoomIn}
+              aria-label='Zoom in'
+              title='Zoom in'>
+              +
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="viewer-meta" role="status" aria-live="polite">
-        <span>{statusText}</span>
-        {pdfFile ? <span>{pdfFile.fileName}</span> : null}
-        {totalPages > 0 ? <span>{totalPages} pages</span> : null}
-      </div>
+      {errorMessage ? <p className='error-message'>{errorMessage}</p> : null}
 
-      {errorMessage ? <p className="error-message">{errorMessage}</p> : null}
-
-      <div className="canvas-stage">
-        <div className="page-surface">
-          <canvas ref={canvasRef} className="pdf-canvas" />
+      <div
+        className={`canvas-stage${isPanning ? ' is-panning' : ''}`}
+        ref={containerRef}
+        onClick={(e) => {
+          if (e.ctrlKey && canZoomIn) {
+            handleZoomIn();
+          }
+        }}
+        onPointerDown={handleStagePointerDown}
+        onPointerMove={handleStagePointerMove}
+        onPointerUp={handleStagePointerUp}
+        onPointerCancel={handleStagePointerUp}
+        onPointerLeave={handleStagePointerUp}
+        style={{ cursor: isPanning ? 'grabbing' : 'grab' }}>
+        <div className='page-surface'>
+          <canvas ref={canvasRef} className='pdf-canvas' />
           {pdfDocument ? (
             <OverlayLayer
               overlays={overlays}
@@ -233,7 +384,7 @@ export function PdfViewer({
           ) : null}
         </div>
         {!pdfFile && (
-          <div className="empty-state">
+          <div className='empty-state'>
             Choose a local PDF file to preview its pages.
           </div>
         )}

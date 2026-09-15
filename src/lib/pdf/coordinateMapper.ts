@@ -1,3 +1,6 @@
+export const DEFAULT_PAGE_RENDER_SCALE = 1.4;
+export const ZOOM_LEVELS = [0.7, 1.05, 1.4, 1.75, 2.1, 2.8] as const;
+
 export type PreviewRect = {
   x: number;
   y: number;

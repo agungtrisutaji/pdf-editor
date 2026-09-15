@@ -335,3 +335,39 @@ function getDefaultSignatureHeight({
     MAX_SIGNATURE_HEIGHT,
   );
 }
+
+export function rescaleOverlays(
+  overlayState: OverlayPageState,
+  factor: number,
+): OverlayPageState {
+  if (factor === 1 || factor <= 0 || !Number.isFinite(factor)) {
+    return overlayState;
+  }
+
+  return Object.fromEntries(
+    Object.entries(overlayState).map(([pageIndex, overlays]) => [
+      pageIndex,
+      overlays.map((overlay) => {
+        const scaledBase = {
+          ...overlay,
+          x: Math.round(overlay.x * factor * 100) / 100,
+          y: Math.round(overlay.y * factor * 100) / 100,
+          width: Math.max(10, Math.round(overlay.width * factor * 100) / 100),
+          height: Math.max(10, Math.round(overlay.height * factor * 100) / 100),
+        };
+
+        if (overlay.type === "text") {
+          return {
+            ...scaledBase,
+            fontSize: Math.max(
+              1,
+              Math.round(overlay.fontSize * factor * 10) / 10,
+            ),
+          };
+        }
+
+        return scaledBase;
+      }),
+    ]),
+  );
+}

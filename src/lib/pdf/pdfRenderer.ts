@@ -9,7 +9,9 @@ import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-export const DEFAULT_PAGE_RENDER_SCALE = 1.4;
+import { DEFAULT_PAGE_RENDER_SCALE } from "./coordinateMapper";
+
+export { DEFAULT_PAGE_RENDER_SCALE };
 
 export function createPdfLoadingTask(
   data: ArrayBuffer,
