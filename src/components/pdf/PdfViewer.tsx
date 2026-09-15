@@ -261,8 +261,8 @@ export function PdfViewer({
     const container = containerRef.current;
     if (!container) return;
 
-    // Check if clicked exactly on the canvas-stage (not scrollbars or overlays)
-    if (e.target !== container) return;
+    // Check if clicked on an overlay, if so, do not pan
+    if ((e.target as HTMLElement).closest('.pdf-overlay')) return;
 
     // Check if clicked on a scrollbar
     const isClickOnVerticalScrollbar = e.clientX >= container.getBoundingClientRect().right - container.offsetWidth + container.clientWidth;
