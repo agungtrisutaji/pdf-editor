@@ -83,6 +83,7 @@ function App() {
   const [exportSuccessMessage, setExportSuccessMessage] = useState<
     string | null
   >(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   function handleZoomChange(newScale: number) {
     if (newScale <= 0 || newScale === zoomScale || !Number.isFinite(newScale)) {
@@ -381,7 +382,7 @@ function App() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarOpen ? "" : "is-closed"}`}>
         <div>
           <p className="eyebrow">Milestone 2</p>
           <h1>PDF Overlay Editor</h1>
@@ -494,6 +495,8 @@ function App() {
         onPageIndexChange={handlePageIndexChange}
         onDocumentReadyChange={setIsPdfReady}
         onPagePreviewSizeChange={handlePagePreviewSizeChange}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
       <SignaturePadModal

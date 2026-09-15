@@ -32,6 +32,8 @@ type PdfViewerProps = {
   onPageIndexChange: (pageIndex: number) => void;
   onDocumentReadyChange: (isReady: boolean) => void;
   onPagePreviewSizeChange: (pageIndex: number, size: PageSize) => void;
+  isSidebarOpen: boolean;
+  onToggleSidebar: () => void;
 };
 
 type LoadStatus = "idle" | "loading" | "ready" | "error";
@@ -50,6 +52,8 @@ export function PdfViewer({
   onPageIndexChange,
   onDocumentReadyChange,
   onPagePreviewSizeChange,
+  isSidebarOpen,
+  onToggleSidebar,
 }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -291,11 +295,21 @@ export function PdfViewer({
   return (
     <section className="viewer-panel" aria-label="PDF viewer">
       <div className="viewer-toolbar">
-        <div>
-          <p className="eyebrow">Local PDF Viewer</p>
-          <h1>{pdfFile?.fileName ?? "No file selected"}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button 
+            type="button" 
+            className="small-button" 
+            onClick={onToggleSidebar}
+            title={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+            style={{ padding: '6px 10px', fontSize: '1rem', alignSelf: 'center', marginTop: '6px' }}
+          >
+            {isSidebarOpen ? "◀" : "☰"}
+          </button>
+          <div>
+            <p className="eyebrow" style={{ marginBottom: '2px' }}>Local PDF Viewer</p>
+            <h1 style={{ fontSize: '1.25rem' }}>{pdfFile?.fileName ?? "No file selected"}</h1>
+          </div>
         </div>
-
         <div className="viewer-toolbar-actions">
           <div className="page-controls" aria-label="Page navigation">
             <button
