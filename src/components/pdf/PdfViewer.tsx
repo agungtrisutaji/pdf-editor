@@ -14,6 +14,7 @@ import {
   type PageSize,
 } from "../../lib/pdf/coordinateMapper";
 import type { Overlay } from "../../types/overlays";
+import { PdfThumbnails } from "./PdfThumbnails";
 
 type PdfPageProps = {
   pdfDocument: PDFDocumentProxy;
@@ -106,7 +107,7 @@ function PdfPage({
   const pageOverlays = overlays.filter((o) => o.pageIndex === pageIndex);
 
   return (
-    <div ref={containerRef} className='page-surface' style={{ marginBottom: '24px' }}>
+    <div id={`pdf-page-${pageIndex}`} ref={containerRef} className='page-surface' style={{ marginBottom: '24px' }}>
       <canvas ref={canvasRef} className='pdf-canvas' />
       <OverlayLayer
         overlays={pageOverlays}
@@ -121,6 +122,7 @@ function PdfPage({
 
 type PdfViewerProps = {
   pdfFile: SelectedPdfFile | null;
+  activePageIndex: number;
   overlays: Overlay[];
   selectedOverlayId: string | null;
   zoomScale: number;
@@ -141,6 +143,7 @@ type PdfViewerProps = {
 
 export function PdfViewer({
   pdfFile,
+  activePageIndex,
   overlays,
   selectedOverlayId,
   zoomScale,
@@ -159,7 +162,15 @@ export function PdfViewer({
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
+  const [isThumbnailsOpen, setIsThumbnailsOpen] = useState(false);
   const panStartRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
+
+  function handleThumbnailClick(pageIndex: number) {
+    const el = document.getElementById(`pdf-page-${pageIndex}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
 
   useEffect(() => {
     let isCurrentFile = true;
@@ -315,6 +326,19 @@ export function PdfViewer({
             }}>
             {isSidebarOpen ? '◀' : '☰'}
           </button>
+          {pdfDocument && (
+            <button
+              type='button'
+              className='small-button'
+              onClick={() => setIsThumbnailsOpen(!isThumbnailsOpen)}
+              title={isThumbnailsOpen ? 'Close Thumbnails' : 'Open Thumbnails'}
+              style={{
+                padding: '6px 10px',
+                fontSize: '1rem',
+              }}>
+              {isThumbnailsOpen ? '▤' : '▦'}
+            </button>
+          )}
         </div>
 
         <div 
@@ -384,6 +408,14 @@ export function PdfViewer({
         onPointerLeave={handleStagePointerUp}
         style={{ cursor: isPanning ? 'grabbing' : 'grab', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0' }}>
         
+        {isThumbnailsOpen && pdfDocument && (
+          <PdfThumbnails
+            pdfDocument={pdfDocument}
+            totalPages={totalPages}
+            activePageIndex={activePageIndex}
+            onThumbnailClick={handleThumbnailClick}
+          />
+        )}
         {pdfDocument ? (
           Array.from({ length: totalPages }).map((_, index) => (
             <PdfPage

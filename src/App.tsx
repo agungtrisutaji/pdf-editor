@@ -482,6 +482,7 @@ function App() {
 
       <PdfViewer
         pdfFile={selectedPdf}
+        activePageIndex={activePageIndex}
         overlays={selectedPdf ? allOverlays : []}
         selectedOverlayId={selectedOverlayId}
         zoomScale={zoomScale}
