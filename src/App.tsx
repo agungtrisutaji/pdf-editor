@@ -317,15 +317,21 @@ function App() {
   }
 
   function handleOverlayMoveForward(overlayId: string) {
+    const targetOverlay = allOverlays.find(o => o.id === overlayId);
+    if (!targetOverlay) return;
+    
     setOverlayState((currentState) =>
-      moveOverlayForward(currentState, activePageIndex, overlayId),
+      moveOverlayForward(currentState, targetOverlay.pageIndex, overlayId),
     );
     setSelectedOverlayId(overlayId);
   }
 
   function handleOverlayMoveBackward(overlayId: string) {
+    const targetOverlay = allOverlays.find(o => o.id === overlayId);
+    if (!targetOverlay) return;
+
     setOverlayState((currentState) =>
-      moveOverlayBackward(currentState, activePageIndex, overlayId),
+      moveOverlayBackward(currentState, targetOverlay.pageIndex, overlayId),
     );
     setSelectedOverlayId(overlayId);
   }
