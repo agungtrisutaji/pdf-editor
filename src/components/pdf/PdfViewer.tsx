@@ -172,7 +172,7 @@ export function PdfViewer({
     if (el && container) {
       const elRect = el.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
-      const scrollPos = container.scrollTop + (elRect.top - containerRect.top) - 24;
+      const scrollPos = Math.max(0, container.scrollTop + (elRect.top - containerRect.top) - 24);
       
       container.scrollTo({
         top: scrollPos,
@@ -416,29 +416,31 @@ export function PdfViewer({
           onPointerUp={handleStagePointerUp}
           onPointerCancel={handleStagePointerUp}
           onPointerLeave={handleStagePointerUp}
-          style={{ cursor: isPanning ? 'grabbing' : 'grab', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0' }}>
+          style={{ cursor: isPanning ? 'grabbing' : 'grab' }}>
           
-          {pdfDocument ? (
-            Array.from({ length: totalPages }).map((_, index) => (
-              <PdfPage
-                key={index}
-                pageIndex={index}
-                pdfDocument={pdfDocument}
-                zoomScale={zoomScale}
-                overlays={overlays}
-                selectedOverlayId={selectedOverlayId}
-                onOverlaySelect={onOverlaySelect}
-                onOverlayMove={onOverlayMove}
-                onOverlayResize={onOverlayResize}
-                onPagePreviewSizeChange={onPagePreviewSizeChange}
-                onVisible={onPageIndexChange}
-              />
-            ))
-          ) : (
-            <div className='empty-state' style={{ marginTop: 'auto', marginBottom: 'auto' }}>
-              Choose a local PDF file to preview its pages.
-            </div>
-          )}
+          <div className="pdf-pages-stack">
+            {pdfDocument ? (
+              Array.from({ length: totalPages }).map((_, index) => (
+                <PdfPage
+                  key={index}
+                  pageIndex={index}
+                  pdfDocument={pdfDocument}
+                  zoomScale={zoomScale}
+                  overlays={overlays}
+                  selectedOverlayId={selectedOverlayId}
+                  onOverlaySelect={onOverlaySelect}
+                  onOverlayMove={onOverlayMove}
+                  onOverlayResize={onOverlayResize}
+                  onPagePreviewSizeChange={onPagePreviewSizeChange}
+                  onVisible={onPageIndexChange}
+                />
+              ))
+            ) : (
+              <div className='empty-state' style={{ marginTop: 'auto', marginBottom: 'auto' }}>
+                Choose a local PDF file to preview its pages.
+              </div>
+            )}
+          </div>
         </div>
 
         {isThumbnailsOpen && pdfDocument && (
