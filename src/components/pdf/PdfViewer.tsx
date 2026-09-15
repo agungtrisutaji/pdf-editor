@@ -3,6 +3,7 @@ import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type { SelectedPdfFile } from "./PdfFilePicker";
 import { OverlayLayer } from "../overlays/OverlayLayer";
 import {
+  clearPdfCanvas,
   createPdfLoadingTask,
   getPdfErrorMessage,
   isPdfRenderCancelError,
@@ -46,7 +47,55 @@ function PdfPage({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   
+  const [baseSize, setBaseSize] = useState<PageSize | null>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  // 1. Fetch metadata (viewport geometry) independently of raster rendering
   useEffect(() => {
+    let isCurrent = true;
+    
+    pdfDocument.getPage(pageIndex + 1)
+      .then((page) => {
+        if (!isCurrent) return;
+        const viewport = page.getViewport({ scale: DEFAULT_PAGE_RENDER_SCALE });
+        const size = { width: viewport.width, height: viewport.height };
+        setBaseSize(size);
+        onPagePreviewSizeChange(pageIndex, size);
+      })
+      .catch((error) => {
+        console.error("Failed to load page metadata", error);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [pdfDocument, pageIndex, onPagePreviewSizeChange]);
+
+  // 2. Setup overscan observer for lazy rendering
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    
+    const root = el.closest('.canvas-stage');
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setShouldRender(entries[0].isIntersecting);
+      },
+      { root, rootMargin: "150% 0px 150% 0px", threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // 3. Render or clear canvas based on shouldRender state
+  useEffect(() => {
+    if (!shouldRender || !baseSize) {
+      if (canvasRef.current) {
+        clearPdfCanvas(canvasRef.current);
+      }
+      return;
+    }
+
     let isCurrentRender = true;
     let renderTask: Awaited<ReturnType<typeof renderPdfPageToCanvas>> | null = null;
 
@@ -66,19 +115,6 @@ function PdfPage({
         renderTask = task;
         return task.promise;
       })
-      .then(() => {
-        if (isCurrentRender) {
-          const canvas = canvasRef.current;
-          if (canvas) {
-            const bounds = canvas.getBoundingClientRect();
-            const width = bounds.width || Number.parseFloat(canvas.style.width) || 0;
-            const height = bounds.height || Number.parseFloat(canvas.style.height) || 0;
-            if (width > 0 && height > 0) {
-              onPagePreviewSizeChange(pageIndex, { width, height });
-            }
-          }
-        }
-      })
       .catch((error: unknown) => {
         if (!isCurrentRender || isPdfRenderCancelError(error)) return;
         console.error("Page render failed:", error);
@@ -88,8 +124,9 @@ function PdfPage({
       isCurrentRender = false;
       renderTask?.cancel();
     };
-  }, [pageIndex, pdfDocument, zoomScale, onPagePreviewSizeChange]);
+  }, [shouldRender, baseSize, pageIndex, pdfDocument, zoomScale]);
 
+  // 4. Setup active page observer
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !onVisible) return;
@@ -109,8 +146,21 @@ function PdfPage({
 
   const pageOverlays = overlays.filter((o) => o.pageIndex === pageIndex);
 
+  const displayWidth = baseSize ? baseSize.width * displayScale : undefined;
+  const displayHeight = baseSize ? baseSize.height * displayScale : undefined;
+  
+  const containerStyle = baseSize ? {
+    width: displayWidth,
+    height: displayHeight,
+    marginBottom: '24px'
+  } : {
+    width: 800 * displayScale, // fallback before metadata
+    height: 1000 * displayScale,
+    marginBottom: '24px'
+  };
+
   return (
-    <div id={`pdf-page-${pageIndex}`} ref={containerRef} className='page-surface' style={{ marginBottom: '24px' }}>
+    <div id={`pdf-page-${pageIndex}`} ref={containerRef} className='page-surface' style={containerStyle}>
       <canvas ref={canvasRef} className='pdf-canvas' />
       <OverlayLayer
         overlays={pageOverlays}

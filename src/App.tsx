@@ -163,27 +163,20 @@ function App() {
 
   const handlePagePreviewSizeChange = useCallback(
     (pageIndexToUpdate: number, size: PageSize) => {
-      const currentDisplayScale =
-        zoomScaleRef.current / DEFAULT_PAGE_RENDER_SCALE;
-      const baseSize: PageSize = {
-        width: size.width / currentDisplayScale,
-        height: size.height / currentDisplayScale,
-      };
-
       setPreviewPageSizes((currentSizes) => {
         const currentSize = currentSizes[pageIndexToUpdate];
 
         if (
           currentSize &&
-          Math.abs(currentSize.width - baseSize.width) < 0.5 &&
-          Math.abs(currentSize.height - baseSize.height) < 0.5
+          Math.abs(currentSize.width - size.width) < 0.5 &&
+          Math.abs(currentSize.height - size.height) < 0.5
         ) {
           return currentSizes;
         }
 
         return {
           ...currentSizes,
-          [pageIndexToUpdate]: baseSize,
+          [pageIndexToUpdate]: size,
         };
       });
     },
